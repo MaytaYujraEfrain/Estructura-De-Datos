@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calcular Distancia entre Dos Puntos 3D</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 600px;
+        }
+
+        canvas {
+            border: 1px solid #000;
+            margin-top: 20px;
+            cursor: crosshair;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        #result {
+            margin-top: 20px;
+            font-size: 1.2em;
+            color: #333;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1 class="mb-4">Calculadora de Distancia entre Dos Puntos 3D</h1>
+        <form id="distanceForm" class="row g-3">
+            <div class="col-md-4">
+                <label for="x1" class="form-label">X1:</label>
+                <input type="number" class="form-control" id="x1" required>
+            </div>
+            <div class="col-md-4">
+                <label for="y1" class="form-label">Y1:</label>
+                <input type="number" class="form-control" id="y1" required>
+            </div>
+            <div class="col-md-4">
+                <label for="z1" class="form-label">Z1:</label>
+                <input type="number" class="form-control" id="z1" required>
+            </div>
+            <div class="col-md-4">
+                <label for="x2" class="form-label">X2:</label>
+                <input type="number" class="form-control" id="x2" required>
+            </div>
+            <div class="col-md-4">
+                <label for="y2" class="form-label">Y2:</label>
+                <input type="number" class="form-control" id="y2" required>
+            </div>
+            <div class="col-md-4">
+                <label for="z2" class="form-label">Z2:</label>
+                <input type="number" class="form-control" id="z2" required>
+            </div>
+            <div class="col-12">
+                <button type="button" class="btn btn-primary" onclick="calculateDistance()">Calcular Distancia</button>
+            </div>
+        </form>
+        <canvas id="canvas" width="500" height="500"></canvas>
+        <p id="result"></p>
+        <div id="calculated-coordinates" style="margin-top: 20px;">
+            <p><strong>Punto 1:</strong> (<span id="display-x1">0</span>, <span id="display-y1">0</span>, <span
+                    id="display-z1">0</span>)</p>
+            <p><strong>Punto 2:</strong> (<span id="display-x2">0</span>, <span id="display-y2">0</span>, <span
+                    id="display-z2">0</span>)</p>
+            <p><strong>Distancia:</strong> <span id="display-distance">0</span></p>
+            <p id="property-message"></p>
+        </div>
+    </div>
+    <script>
+        let points = [];
+
+        function calculateDistance() {
+            const x1 = parseFloat(document.getElementById('x1').value);
+            const y1 = parseFloat(document.getElementById('y1').value);
+            const z1 = parseFloat(document.getElementById('z1').value);
+            const x2 = parseFloat(document.getElementById('x2').value);
+            const y2 = parseFloat(document.getElementById('y2').value);
+            const z2 = parseFloat(document.getElementById('z2').value);
+
+            if (isNaN(x1) || isNaN(y1) || isNaN(z1) || isNaN(x2) || isNaN(y2) || isNaN(z2)) {
+                document.getElementById('result').innerText = "Por favor, ingrese valores válidos.";
+                return;
+            }
+
+            const distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2) + Math.pow(z2 - z1, 2));
+
+            document.getElementById('result').innerText = `La distancia entre los puntos (${x1}, ${y1}, ${z1}) y (${x2}, ${y2}, ${z2}) es ${distance.toFixed(2)}`;
+            document.getElementById('display-x1').innerText = x1.toFixed(2);
+            document.getElementById('display-y1').innerText = y1.toFixed(2);
+            document.getElementById('display-z1').innerText = z1.toFixed(2);
+            document.getElementById('display-x2').innerText = x2.toFixed(2);
+            document.getElementById('display-y2').innerText = y2.toFixed(2);
+            document.getElementById('display-z2').innerText = z2.toFixed(2);
+            document.getElementById('display-distance').innerText = distance.toFixed(2);
+
+            const propertyMessage = distance === 0
+                ? "La distancia es cero porque los puntos están en el mismo lugar."
+                : "La distancia es positiva porque siempre es un valor positivo o cero.";
+
+            document.getElementById('property-message').innerText = propertyMessage;
+
+            drawPointsAndLine(points[0]?.x, points[0]?.y, points[1]?.x, points[1]?.y, distance);
+        }
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.addEventListener('click', function (event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            points.push({ x, y });
+
+            if (points.length > 2) {
+                points.shift(); // Keep only the last two points
+            }
+
+            if (points.length === 2) {
+                document.getElementById('x1').value = points[0].x.toFixed(2);
+                document.getElementById('y1').value = points[0].y.toFixed(2);
+                document.getElementById('z1').value = 0; // No Z coordinate from canvas click
+                document.getElementById('x2').value = points[1].x.toFixed(2);
+                document.getElementById('y2').value = points[1].y.toFixed(2);
+                document.getElementById('z2').value = 0; // No Z coordinate from canvas click
+                calculateDistance();
+            }
+
+            drawPointsAndLine(points[0]?.x, points[0]?.y, points[1]?.x, points[1]?.y);
+        });
+
+        // Actualiza la función drawPointsAndLine con la cuadrícula y las etiquetas de ejes
+        function drawPointsAndLine(x1, y1, x2, y2, distance) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'red';
+
+            // Dibujar cuadrícula
+            const gridSize = 50;
+            ctx.strokeStyle = '#ddd';
+            ctx.lineWidth = 1;
+            for (let x = 0; x <= canvas.width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= canvas.height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Dibujar etiquetas de ejes
+            ctx.fillStyle = 'black';
+            ctx.font = '10px Arial';
+            for (let x = 0; x <= canvas.width; x += gridSize) {
+                ctx.fillText(x, x + 2, 10);
+            }
+            for (let y = 0; y <= canvas.height; y += gridSize) {
+                ctx.fillText(y, 2, y - 2);
+            }
+
+            points.forEach(point => {
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 5, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+
+            if (points.length === 2) {
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.strokeStyle = 'blue';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = 'blue';
+                const midX = (x1 + x2) / 2;
+                const midY = (y1 + y2) / 2;
+                ctx.fillText(`Distancia: ${distance.toFixed(2)} px`, midX, midY);
+            }
+        }
+
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
