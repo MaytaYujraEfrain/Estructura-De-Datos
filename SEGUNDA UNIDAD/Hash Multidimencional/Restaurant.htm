@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Geolocalización para Restaurantes</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css">
+    <style>
+        #map {
+            height: 500px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            border: 2px solid #ddd;
+        }
+        .route-button {
+            padding: 8px 16px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .route-button:hover {
+            background-color: #0056b3;
+        }
+        .route-button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .banner {
+            background: url('https://cdn.prod.website-files.com/6423e8cf97045d0ac6e9ffb9/6565d9491a89f4b7b7915b3e_tipos%20de%20restaurante.jpg') no-repeat center center;
+            background-size: cover;
+            height: 500px;
+            position: relative;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .banner h1 {
+            font-size: 4rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+        <a class="navbar-brand" href="#">Geolocalización de Restaurantes</a>
+    </nav>
+
+    <div class="banner">
+        <div class="container">
+            <h1>Encuentra tu Restaurante Favorito</h1>
+        </div>
+    </div>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-6 offset-md-3">
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text" id="latitude-label">Latitud</span>
+                    </div>
+                    <input type="text" class="form-control" id="latitude" placeholder="-15.8402213" aria-label="Latitud" aria-describedby="latitude-label">
+                </div>
+                <div class="input-group mb-3">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text" id="longitude-label">Longitud</span>
+                    </div>
+                    <input type="text" class="form-control" id="longitude" placeholder="-70.0218809" aria-label="Longitud" aria-describedby="longitude-label">
+                </div>
+                <div class="text-center">
+                    <button class="btn btn-success" onclick="findNearbyRestaurants()">Buscar Restaurantes Cercanos</button>
+                </div>
+            </div>
+        </div>
+        <div id="map"></div>
+        <div id="results" class="mt-4">
+            <h2 class="text-center">Restaurantes Cercanos:</h2>
+            <ul id="restaurantList" class="list-group"></ul>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+    <script>
+        const map = L.map('map').setView([-15.8402213, -70.0218809], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        let userMarker;
+        let routingControl;
+
+        class Restaurant {
+            constructor(name, type, rating, latitude, longitude) {
+                this.name = name;
+                this.type = type;
+                this.rating = rating;
+                this.latitude = latitude;
+                this.longitude = longitude;
+            }
+        }
+
+        class Grid {
+            constructor(size) {
+                this.size = size;
+                this.cells = new Map();
+            }
+
+            getCellKey(latitude, longitude) {
+                const x = Math.floor(latitude / this.size);
+                const y = Math.floor(longitude / this.size);
+                return `${x},${y}`;
+            }
+
+            addRestaurant(restaurant) {
+                const key = this.getCellKey(restaurant.latitude, restaurant.longitude);
+                if (!this.cells.has(key)) {
+                    this.cells.set(key, []);
+                }
+                this.cells.get(key).push(restaurant);
+                L.marker([restaurant.latitude, restaurant.longitude]).addTo(map)
+                    .bindPopup(`<b>${restaurant.name}</b><br>${restaurant.type}<br>${restaurant.rating} estrellas`);
+            }
+
+            getNearbyRestaurants(latitude, longitude) {
+                const nearbyRestaurants = [];
+                const centerKey = this.getCellKey(latitude, longitude);
+                const centerX = parseInt(centerKey.split(',')[0]);
+                const centerY = parseInt(centerKey.split(',')[1]);
+
+                for (let dx = -1; dx <= 1; dx++) {
+                    for (let dy = -1; dy <= 1; dy++) {
+                        const key = `${centerX + dx},${centerY + dy}`;
+                        if (this.cells.has(key)) {
+                            nearbyRestaurants.push(...this.cells.get(key));
+                        }
+                    }
+                }
+                return nearbyRestaurants;
+            }
+        }
+
+        const grid = new Grid(0.001);
+
+        const restaurants = [
+            new Restaurant("Restaurant A", "Italiana", 4.5, -15.8392213, -70.0218809),
+            new Restaurant("Restaurant B", "Mexicana", 4.0, -15.8382213, -70.0208809),
+            new Restaurant("Restaurant C", "China", 3.5, -15.8372213, -70.0198809)
+        ];
+
+        restaurants.forEach(restaurant => grid.addRestaurant(restaurant));
+        
+        function findNearbyRestaurants() {
+            const latitude = parseFloat(document.getElementById('latitude').value);
+            const longitude = parseFloat(document.getElementById('longitude').value);
+            const nearbyRestaurants = grid.getNearbyRestaurants(latitude, longitude);
+
+            const restaurantList = document.getElementById('restaurantList');
+            restaurantList.innerHTML = '';
+
+            nearbyRestaurants.forEach(restaurant => {
+                const listItem = document.createElement('li');
+                listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+
+                const routeButton = document.createElement('button');
+                routeButton.textContent = 'Trazar Ruta';
+                routeButton.className = 'route-button btn btn-primary';
+                routeButton.onclick = () => {
+                    calculateRoute(latitude, longitude, restaurant.latitude, restaurant.longitude);
+                };
+
+                listItem.innerHTML = `
+                    <div>
+                        <h5>${restaurant.name}</h5>
+                        <p><strong>Tipo:</strong> ${restaurant.type}</p>
+                        <p><strong>Calificación:</strong> ${restaurant.rating} estrellas</p>
+                    </div>
+                    <div class="text-center">
+                        <img src="https://via.placeholder.com/150" alt="Imagen del restaurante" class="img-thumbnail mb-2">
+                        <button class="btn btn-info" onclick="showDetails(${restaurant.latitude}, ${restaurant.longitude})">Ver Detalles</button>
+                    </div>
+                `;
+                listItem.appendChild(routeButton);
+                restaurantList.appendChild(listItem);
+            });
+
+            map.setView([latitude, longitude], 13);
+            if (userMarker) {
+                userMarker.setLatLng([latitude, longitude]);
+            } else {
+                userMarker = L.marker([latitude, longitude], {icon: userIcon}).addTo(map);
+            }
+
+            if (nearbyRestaurants.length > 0) {
+                const closestRestaurant = nearbyRestaurants[0];
+                calculateRoute(latitude, longitude, closestRestaurant.latitude, closestRestaurant.longitude);
+            }
+        }
+
+        function calculateRoute(startLat, startLng, endLat, endLng) {
+            if (routingControl) {
+                map.removeControl(routingControl);
+            }
+
+            routingControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(startLat, startLng),
+                    L.latLng(endLat, endLng)
+                ],
+                routeWhileDragging: true,
+                createMarker: function() { return null; }
+            }).addTo(map);
+        }
+
+        function showDetails(latitude, longitude) {
+            const restaurant = restaurants.find(r => r.latitude === latitude && r.longitude === longitude);
+            if (restaurant) {
+                alert(`Detalles de ${restaurant.name}:\nTipo: ${restaurant.type}\nCalificación: ${restaurant.rating} estrellas`);
+            }
+        }
+
+        const userIcon = L.icon({
+            iconUrl: 'https://static.vecteezy.com/system/resources/previews/010/998/812/non_2x/map-pointer-user-icon-location-map-pin-icon-gps-marker-symbols-plan-place-pointer-signs-location-tag-concept-vector.jpg',
+            iconSize: [38, 95],
+            iconAnchor: [22, 94],
+            popupAnchor: [-3, -76],
+            shadowUrl: 'https://leafletjs.com/examples/custom-icons/leaf-shadow.png',
+            shadowSize: [50, 64],
+            shadowAnchor: [4, 62]
+        });
+
+        function locateUser() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+                    document.getElementById('latitude').value = latitude;
+                    document.getElementById('longitude').value = longitude;
+                    map.setView([latitude, longitude], 13);
+                    if (userMarker) {
+                        userMarker.setLatLng([latitude, longitude]);
+                    } else {
+                        userMarker = L.marker([latitude, longitude], {icon: userIcon}).addTo(map);
+                    }
+                });
+            } else {
+                alert("Geolocalización no soportada por este navegador.");
+            }
+        }
+
+        locateUser();
+    </script>
+</body>
+</html>

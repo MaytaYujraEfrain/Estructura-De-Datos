@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detección de Plagios</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        textarea, input[type="file"], input[type="url"], button {
+            width: 100%;
+            margin-bottom: 20px;
+            padding: 10px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #results {
+            margin-top: 20px;
+        }
+        .result-item {
+            margin-bottom: 15px;
+        }
+        .result-item p {
+            margin: 0;
+        }
+        .result-item ul {
+            margin: 5px 0 0 20px;
+        }
+        #progress {
+            display: none;
+            margin-bottom: 20px;
+            font-size: 16px;
+            color: #007BFF;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Detección de Plagios</h1>
+        <textarea id="document" placeholder="Inserte el documento aquí..." oninput="detectPlagiarism()"></textarea>
+        <input type="file" id="pdfFile" accept="application/pdf" multiple onchange="handleFiles(this.files)">
+        <input type="url" id="webUrl" placeholder="Inserte la URL del sitio web...">
+        <button onclick="addUrl()">Agregar URL</button>
+        <div>
+            <label for="sensitivity">Sensibilidad (Distancia máxima): </label>
+            <input type="number" id="sensitivity" value="3" min="1" max="10">
+        </div>
+        <div id="progress">Procesando...</div>
+        <div id="results"></div>
+    </div>
+    <script>
+        class BKTree {
+            constructor(distFunc) {
+                this.distFunc = distFunc;
+                this.root = null;
+            }
+
+            insert(phrase) {
+                if (!this.root) {
+                    this.root = new BKNode(phrase);
+                    return;
+                }
+                let current = this.root;
+                while (true) {
+                    const dist = this.distFunc(phrase, current.phrase);
+                    if (current.children[dist]) {
+                        current = current.children[dist];
+                    } else {
+                        current.children[dist] = new BKNode(phrase);
+                        break;
+                    }
+                }
+            }
+
+            search(query, maxDist) {
+                if (!this.root) return [];
+                const results = [];
+                const recursiveSearch = (node, query, maxDist) => {
+                    const dist = this.distFunc(query, node.phrase);
+                    if (dist <= maxDist) {
+                        results.push(node.phrase);
+                    }
+                    for (const childDist in node.children) {
+                        if (dist - maxDist <= childDist && childDist <= dist + maxDist) {
+                            recursiveSearch(node.children[childDist], query, maxDist);
+                        }
+                    }
+                };
+                recursiveSearch(this.root, query, maxDist);
+                return results;
+            }
+        }
+
+        class BKNode {
+            constructor(phrase) {
+                this.phrase = phrase;
+                this.children = {};
+            }
+        }
+
+        function levenshteinDistance(s1, s2) {
+            const len1 = s1.length, len2 = s2.length;
+            const dp = Array(len2 + 1).fill().map(() => Array(len1 + 1).fill(0));
+            for (let i = 0; i <= len1; i++) dp[0][i] = i;
+            for (let j = 0; j <= len2; j++) dp[j][0] = j;
+            for (let j = 1; j <= len2; j++) {
+                for (let i = 1; i <= len1; i++) {
+                    if (s1[i - 1] === s2[j - 1]) {
+                        dp[j][i] = dp[j - 1][i - 1];
+                    } else {
+                        dp[j][i] = Math.min(dp[j - 1][i - 1] + 1, Math.min(dp[j][i - 1] + 1, dp[j - 1][i] + 1));
+                    }
+                }
+            }
+            return dp[len2][len1];
+        }
+
+        const documents = [
+            "Lorem ipsum dolor sit amet, consectetur adipiscing elit.",
+            "Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+            "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+            "Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur."
+        ];
+
+        const bkTree = new BKTree(levenshteinDistance);
+        for (const doc of documents) {
+            const phrases = doc.match(/[^.!?]+[.!?]+/g);
+            for (const phrase of phrases) {
+                bkTree.insert(phrase.trim());
+            }
+        }
+
+        async function detectPlagiarism() {
+            const doc = document.getElementById("document").value;
+            const sensitivity = parseInt(document.getElementById("sensitivity").value);
+            const phrases = doc.match(/[^.!?]+[.!?]+/g);
+            const resultsDiv = document.getElementById("results");
+            resultsDiv.innerHTML = "";
+            if (phrases) {
+                for (const phrase of phrases) {
+                    const searchResults = bkTree.search(phrase.trim(), sensitivity);
+                    if (searchResults.length > 0) {
+                        resultsDiv.innerHTML += `
+                            <div class="result-item">
+                                <p>Frase similar encontrada: <strong>"${phrase.trim()}"</strong></p>
+                                <ul>${searchResults.map(r => `<li>${r}</li>`).join('')}</ul>
+                            </div>
+                        `;
+                    }
+                }
+            } else {
+                resultsDiv.innerHTML = "<p>No se encontraron frases en el documento.</p>";
+            }
+        }
+
+        async function handleFiles(files) {
+            const progressDiv = document.getElementById("progress");
+            progressDiv.style.display = "block";
+            for (const file of files) {
+                const text = await extractTextFromPDF(file);
+                document.getElementById("document").value += text + " ";
+            }
+            progressDiv.style.display = "none";
+            detectPlagiarism();
+        }
+
+        async function addUrl() {
+            const url = document.getElementById("webUrl").value;
+            if (url) {
+                const progressDiv = document.getElementById("progress");
+                progressDiv.style.display = "block";
+                const text = await extractTextFromWeb(url);
+                document.getElementById("document").value += text + " ";
+                progressDiv.style.display = "none";
+                detectPlagiarism();
+            }
+        }
+
+        async function extractTextFromPDF(file) {
+            const reader = new FileReader();
+            reader.readAsArrayBuffer(file);
+            return new Promise((resolve, reject) => {
+                reader.onload = async () => {
+                    const pdfDoc = await PDFLib.PDFDocument.load(reader.result);
+                    let text = '';
+                    const numPages = pdfDoc.getPageCount();
+                    for (let i = 0; i < numPages; i++) {
+                        const page = pdfDoc.getPage(i);
+                        const content = await page.getTextContent();
+                        text += content.items.map(item => item.str).join(' ') + ' ';
+                    }
+                    resolve(text);
+                };
+                reader.onerror = (error) => reject(error);
+            });
+        }
+
+        async function extractTextFromWeb(url) {
+            const response = await fetch(url);
+            const text = await response.text();
+            const doc = new DOMParser().parseFromString(text, 'text/html');
+            resolve(doc.body.innerText);
+        }
+    </script>
+</body>
+</html>

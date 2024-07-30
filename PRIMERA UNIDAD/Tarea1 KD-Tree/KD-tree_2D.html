@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KD-Tree Visualization</title>
+    <style>
+        #canvas, #treeCanvas {
+            border: 1px solid #000;
+            display: inline-block;
+            margin: 10px;
+        }
+        #container {
+            display: flex;
+            flex-direction: row;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="canvas" width="800" height="800"></canvas>
+        <canvas id="treeCanvas" width="800" height="800"></canvas>
+    </div>
+    <script>
+        class Node {
+            constructor(point, axis, color) {
+                this.point = point;
+                this.left = null;
+                this.right = null;
+                this.axis = axis;
+                this.color = color;
+            }
+        }
+
+        class KDTree {
+            constructor() {
+                this.root = null;
+            }
+
+            insert(point, color) {
+                const insertRec = (node, point, color, depth) => {
+                    if (node === null) {
+                        return new Node(point, depth % 2, color);
+                    }
+                    const axis = node.axis;
+                    if (point[axis] < node.point[axis]) {
+                        node.left = insertRec(node.left, point, color, depth + 1);
+                    } else {
+                        node.right = insertRec(node.right, point, color, depth + 1);
+                    }
+                    return node;
+                };
+
+                this.root = insertRec(this.root, point, color, 0);
+            }
+
+            draw(ctx, node, xMin, xMax, yMin, yMax) {
+                if (node === null) {
+                    return;
+                }
+
+                const axis = node.axis;
+
+                ctx.fillStyle = node.color;
+                ctx.beginPath();
+                ctx.arc(node.point[0], node.point[1], 3, 0, Math.PI * 2, true);
+                ctx.fill();
+
+                if (axis === 0) {
+                    ctx.strokeStyle = 'red';
+                    ctx.beginPath();
+                    ctx.moveTo(node.point[0], yMin);
+                    ctx.lineTo(node.point[0], yMax);
+                    ctx.stroke();
+
+                    this.draw(ctx, node.left, xMin, node.point[0], yMin, yMax);
+                    this.draw(ctx, node.right, node.point[0], xMax, yMin, yMax);
+                } else {
+                    ctx.strokeStyle = 'blue';
+                    ctx.beginPath();
+                    ctx.moveTo(xMin, node.point[1]);
+                    ctx.lineTo(xMax, node.point[1]);
+                    ctx.stroke();
+
+                    this.draw(ctx, node.left, xMin, xMax, yMin, node.point[1]);
+                    this.draw(ctx, node.right, xMin, xMax, node.point[1], yMax);
+                }
+            }
+
+            drawTree(ctx, node, x, y, spacingX, spacingY, depth = 0) {
+                if (node === null) {
+                    return;
+                }
+
+                const leftX = x - spacingX;
+                const rightX = x + spacingX;
+                const nextY = y + spacingY;
+
+                // Draw node
+                ctx.fillStyle = node.color;
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(x, y, 8, 0, Math.PI * 2, true);
+                ctx.fill();
+                ctx.stroke();
+
+                // Draw node label
+                ctx.fillStyle = 'white';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillRect(x - 20, y - 30, 40, 20);
+                ctx.fillStyle = 'black';
+                ctx.fillText(`(${node.point[0]}, ${node.point[1]})`, x, y - 15);
+
+                // Draw edges
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = 'gray';
+                if (node.left !== null) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    ctx.lineTo(leftX, nextY);
+                    ctx.stroke();
+                    this.drawTree(ctx, node.left, leftX, nextY, spacingX / 2, spacingY, depth + 1);
+                }
+
+                if (node.right !== null) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    ctx.lineTo(rightX, nextY);
+                    ctx.stroke();
+                    this.drawTree(ctx, node.right, rightX, nextY, spacingX / 2, spacingY, depth + 1);
+                }
+            }
+
+            clearCanvas(ctx, width, height) {
+                ctx.clearRect(0, 0, width, height);
+            }
+        }
+
+        function getRandomColor() {
+            const letters = '0123456789ABCDEF';
+            let color = '#';
+            for (let i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
+        }
+
+        const canvas = document.getElementById('canvas');
+        const treeCanvas = document.getElementById('treeCanvas');
+        const ctx = canvas.getContext('2d');
+        const treeCtx = treeCanvas.getContext('2d');
+
+        const tree = new KDTree();
+
+        canvas.addEventListener('click', (event) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            const color = getRandomColor();
+
+            tree.insert([x, y], color);
+            tree.clearCanvas(ctx, canvas.width, canvas.height);
+            tree.clearCanvas(treeCtx, treeCanvas.width, treeCanvas.height);
+            // Draw KD-Tree divisions and points on the first canvas
+            tree.draw(ctx, tree.root, 0, canvas.width, 0, canvas.height);
+            // Draw the tree structure with nodes and edges on the second canvas
+            tree.drawTree(treeCtx, tree.root, treeCanvas.width / 2, 50, treeCanvas.width / 4, 70);
+        });
+    </script>
+</body>
+</html>

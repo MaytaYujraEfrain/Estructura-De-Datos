@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Recomendación de Música</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #e0eafc, #cfdef3);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 600px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-size: 24px;
+            color: #333;
+        }
+
+        h2 {
+            margin-bottom: 15px;
+            font-size: 20px;
+            color: #555;
+        }
+
+        .song-list,
+        .result-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+            text-align: left;
+        }
+
+        .song-item,
+        .result-item {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .song-item:hover,
+        .result-item:hover {
+            background-color: #f9f9f9;
+        }
+
+        .selected {
+            background-color: #d9f0ff;
+        }
+
+        button {
+            background: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Sistema de Recomendación de Música</h1>
+        <h2>Lista de Canciones</h2>
+        <ul class="song-list">
+            <!-- Canciones se mostrarán aquí -->
+        </ul>
+        <h2>Buscar Canciones Similares</h2>
+        <button onclick="findSimilarSongs()">Buscar</button>
+        <h2>Resultados</h2>
+        <ul class="result-list">
+            <!-- Resultados se mostrarán aquí -->
+        </ul>
+    </div>
+    <script>
+        // Datos de las canciones
+        let songs = [
+            { id: 1, features: [120, 55, 210], name: "Canción A" },
+            { id: 2, features: [130, 60, 200], name: "Canción B" },
+            { id: 3, features: [110, 53, 180], name: "Canción C" },
+            { id: 4, features: [125, 58, 240], name: "Canción D" },
+            { id: 5, features: [140, 65, 220], name: "Canción E" }
+        ];
+
+        // Mostrar la lista de canciones
+        const songList = document.querySelector('.song-list');
+        let selectedSong = null;
+        songs.forEach(song => {
+            const li = document.createElement('li');
+            li.textContent = `${song.name} (ID: ${song.id}, Features: ${song.features.join(', ')})`;
+            li.classList.add('song-item');
+            li.onclick = () => {
+                document.querySelectorAll('.song-item').forEach(item => item.classList.remove('selected'));
+                li.classList.add('selected');
+                selectedSong = song;
+            };
+            songList.appendChild(li);
+        });
+
+        // Función de distancia Euclidiana
+        function euclideanDistance(a, b) {
+            return Math.sqrt(a.reduce((sum, val, i) => sum + (val - b[i]) ** 2, 0));
+        }
+
+        // Clase Nodo del Árbol VP
+        class Node {
+            constructor(song) {
+                this.song = song;
+                this.radius = 0;
+                this.inside = null;
+                this.outside = null;
+            }
+        }
+
+        // Clase Árbol VP
+        class VPTree {
+            constructor(songs, distanceFunc) {
+                this.root = this.buildTree(songs, distanceFunc);
+            }
+
+            buildTree(songs, distanceFunc) {
+                if (songs.length === 0) return null;
+
+                const index = Math.floor(Math.random() * songs.length);
+                const song = songs[index];
+                const node = new Node(song);
+                songs.splice(index, 1);
+
+                if (songs.length === 0) return node;
+
+                const distances = songs.map(s => distanceFunc(song.features, s.features));
+                const median = this.median(distances);
+                node.radius = median;
+
+                const insideSongs = songs.filter((s, i) => distances[i] <= median);
+                const outsideSongs = songs.filter((s, i) => distances[i] > median);
+
+                node.inside = this.buildTree(insideSongs, distanceFunc);
+                node.outside = this.buildTree(outsideSongs, distanceFunc);
+
+                return node;
+            }
+
+            median(values) {
+                values.sort((a, b) => a - b);
+                const mid = Math.floor(values.length / 2);
+                return values[mid];
+            }
+
+            search(song, maxResults, distanceFunc, node = this.root, neighbors = []) {
+                if (!node) return neighbors;
+
+                const dist = distanceFunc(song.features, node.song.features);
+                if (neighbors.length < maxResults || dist < neighbors[neighbors.length - 1].distance) {
+                    neighbors.push({ song: node.song, distance: dist });
+                    neighbors.sort((a, b) => a.distance - b.distance);
+                    if (neighbors.length > maxResults) neighbors.pop();
+                }
+
+                const checkInsideFirst = dist < node.radius;
+
+                if (checkInsideFirst) {
+                    this.search(song, maxResults, distanceFunc, node.inside, neighbors);
+                    if (neighbors.length < maxResults || Math.abs(node.radius - dist) < neighbors[neighbors.length - 1].distance) {
+                        this.search(song, maxResults, distanceFunc, node.outside, neighbors);
+                    }
+                } else {
+                    this.search(song, maxResults, distanceFunc, node.outside, neighbors);
+                    if (neighbors.length < maxResults || Math.abs(node.radius - dist) < neighbors[neighbors.length - 1].distance) {
+                        this.search(song, maxResults, distanceFunc, node.inside, neighbors);
+                    }
+                }
+
+                return neighbors;
+            }
+        }
+
+        // Crear el Árbol VP
+        let tree = new VPTree(songs, euclideanDistance);
+
+        // Función para buscar canciones similares
+        function findSimilarSongs() {
+            if (!selectedSong) {
+                alert('Por favor, selecciona una canción primero.');
+                return;
+            }
+
+            const maxResults = 2;
+            let similarSongs = tree.search(selectedSong, maxResults, euclideanDistance);
+
+            // Si no hay suficientes canciones similares, crear nuevas canciones
+            if (similarSongs.length < maxResults) {
+                const newSongs = [];
+                for (let i = similarSongs.length; i < maxResults; i++) {
+                    const newSong = createRandomSong();
+                    songs.push(newSong);
+                    newSongs.push(newSong);
+                }
+                // Actualizar el árbol VP con las nuevas canciones
+                tree = new VPTree(songs, euclideanDistance);
+                similarSongs = tree.search(selectedSong, maxResults, euclideanDistance);
+            }
+
+            const resultList = document.querySelector('.result-list');
+            resultList.innerHTML = ''; // Limpiar resultados anteriores
+            similarSongs.forEach(result => {
+                const li = document.createElement('li');
+                li.textContent = `${result.song.name} (ID: ${result.song.id}, Distance: ${result.distance.toFixed(2)})`;
+                li.classList.add('result-item');
+                resultList.appendChild(li);
+            });
+        }
+
+        // Función para crear una canción aleatoria
+        function createRandomSong() {
+            const id = songs.length + 1;
+            const features = [
+                Math.floor(Math.random() * 200) + 100,
+                Math.floor(Math.random() * 100) + 50,
+                Math.floor(Math.random() * 300) + 150
+            ];
+            const name = `Canción ${String.fromCharCode(65 + id % 26)}`;
+            return { id, features, name };
+        }
+    </script>
+</body>
+
+</html>

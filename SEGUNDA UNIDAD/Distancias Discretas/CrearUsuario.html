@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Corrección de Errores Tipográficos</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-image: url('https://png.pngtree.com/thumb_back/fh260/background/20190221/ourmid/pngtree-simple-business-office-document-image_20843.jpg'); /* Ruta a tu imagen de fondo */
+      background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
+      color: #333;
+    }
+    #container {
+      background-color: rgba(255, 255, 255, 0.9);
+      padding: 20px;
+      border-radius: 10px;
+      margin-top: 50px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    #input-area {
+      margin-bottom: 20px;
+    }
+    #results {
+      margin-top: 20px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background-color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="container">
+    <h1 class="text-center mb-4">Crear Nuevo Usuario</h1>
+    <div id="input-area">
+      <div class="form-group">
+        <label for="name">Nombre:</label>
+        <input type="text" class="form-control" id="name" placeholder="Introduce tu nombre">
+      </div>
+      <div class="form-group">
+        <label for="username">Nombre de usuario:</label>
+        <input type="text" class="form-control" id="username" placeholder="Introduce un nombre de usuario">
+      </div>
+      <div class="form-group">
+        <label for="email">Correo:</label>
+        <input type="email" class="form-control" id="email" placeholder="Introduce tu correo">
+      </div>
+      <div class="form-group">
+        <label for="phone">Teléfono:</label>
+        <input type="tel" class="form-control" id="phone" placeholder="Introduce tu teléfono">
+      </div>
+      <button class="btn btn-primary" id="check-button">Comprobar</button>
+    </div>
+    <div id="results"></div>
+  </div>
+
+  <!-- Bootstrap JS y jQuery (opcional, si se necesita para otras funcionalidades) -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+  <script>
+    function levenshteinDistance(a, b) {
+      const matrix = [];
+
+      for (let i = 0; i <= b.length; i++) {
+        matrix[i] = [i];
+      }
+
+      for (let j = 0; j <= a.length; j++) {
+        matrix[0][j] = j;
+      }
+
+      for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+          if (b.charAt(i - 1) === a.charAt(j - 1)) {
+            matrix[i][j] = matrix[i - 1][j - 1];
+          } else {
+            matrix[i][j] = Math.min(matrix[i - 1][j - 1] + 1, Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1));
+          }
+        }
+      }
+
+      return matrix[b.length][a.length];
+    }
+
+    class Node {
+      constructor(point) {
+        this.point = point;
+        this.children = {};
+      }
+    }
+
+    class BKTree {
+      constructor(distanceFunc) {
+        this.root = null;
+        this.distanceFunc = distanceFunc;
+      }
+
+      add(point) {
+        if (this.root === null) {
+          this.root = new Node(point);
+        } else {
+          this._add(this.root, point);
+        }
+      }
+
+      _add(node, point) {
+        const distance = this.distanceFunc(point, node.point);
+
+        if (node.children[distance] === undefined) {
+          node.children[distance] = new Node(point);
+        } else {
+          this._add(node.children[distance], point);
+        }
+      }
+
+      search(point, maxDistance) {
+        const results = [];
+        if (this.root !== null) {
+          this._search(this.root, point, maxDistance, results);
+        }
+        return results;
+      }
+
+      _search(node, point, maxDistance, results) {
+        const distance = this.distanceFunc(point, node.point);
+
+        if (distance <= maxDistance) {
+          results.push({ point: node.point, distance });
+        }
+
+        for (let i = Math.max(1, distance - maxDistance); i <= distance + maxDistance; i++) {
+          if (node.children[i]) {
+            this._search(node.children[i], point, maxDistance, results);
+          }
+        }
+      }
+    }
+
+    // Función para verificar si el correo electrónico ya está registrado
+    function checkEmailExists(email) {
+      const storedData = JSON.parse(localStorage.getItem('user_data')) || {};
+      return Object.values(storedData).some(user => user.email.toLowerCase() === email.toLowerCase());
+    }
+
+    // Inicialización del árbol BK y datos almacenados localmente
+    const usernames = ["Alice", "Bob", "Charlie", "David", "Eve"];
+    let storedData = JSON.parse(localStorage.getItem('user_data')) || {};
+    const tree = new BKTree(levenshteinDistance);
+
+    // Añadir nombres de usuario existentes al árbol BK y datos almacenados
+    usernames.forEach(username => {
+      tree.add(username);
+      storedData[username.toLowerCase()] = {
+        username: username.toLowerCase(),
+        email: `${username.toLowerCase()}@example.com`
+      };
+    });
+
+    // Función para buscar nombres de usuario similares
+    function findSimilarUsernames(queryUsername, maxDistance) {
+      return tree.search(queryUsername, maxDistance);
+    }
+
+    // Evento al hacer clic en el botón de comprobación
+    document.getElementById("check-button").addEventListener("click", () => {
+      const name = document.getElementById("name").value;
+      const username = document.getElementById("username").value;
+      const email = document.getElementById("email").value;
+      const phone = document.getElementById("phone").value;
+
+      if (!name || !username || !email || !phone) {
+        alert("Todos los campos son obligatorios.");
+        return;
+      }
+
+      if (checkEmailExists(email)) {
+        document.getElementById("results").innerHTML = "<div class='alert alert-danger' role='alert'>Error: El correo ya está registrado.</div>";
+        return;
+      }
+
+      const maxDistance = 2;
+      const similarUsernames = findSimilarUsernames(username, maxDistance);
+
+      if (similarUsernames.length > 0) {
+        document.getElementById("results").innerHTML = "<div class='alert alert-danger' role='alert'>Error: El nombre de usuario ya existe</div>";
+      } else {
+        document.getElementById("results").innerHTML = "<div class='alert alert-success' role='alert'>Usuario creado con éxito</div>";
+        // Guardar nuevo usuario en datos almacenados
+        storedData[username.toLowerCase()] = { username: username.toLowerCase(), email: email.toLowerCase() };
+        localStorage.setItem('user_data', JSON.stringify(storedData));
+        // Agregar el nuevo nombre de usuario al árbol BK
+        tree.add(username.toLowerCase());
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Autocompletador con Trie</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <style>
+    .suggestion-item {
+      cursor: pointer;
+      padding: 0.5rem;
+      transition: background-color 0.3s ease;
+    }
+
+    .suggestion-item:hover {
+      background-color: #f5f5f5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container my-5">
+    <h1 class="mb-4">Autocompletador con Trie</h1>
+    <div class="form-group">
+      <input type="text" class="form-control" id="inputField" placeholder="Escribe aquí..." />
+    </div>
+    <ul class="list-unstyled" id="suggestionList"></ul>
+  </div>
+
+  <script>
+    class TrieNode {
+      constructor() {
+        this.children = {};
+        this.isEndOfWord = false;
+      }
+    }
+
+    class Trie {
+      constructor() {
+        this.root = new TrieNode();
+      }
+
+      insert(word) {
+        let node = this.root;
+        for (let i = 0; i < word.length; i++) {
+          const char = word[i];
+          if (!node.children[char]) {
+            node.children[char] = new TrieNode();
+          }
+          node = node.children[char];
+        }
+        node.isEndOfWord = true;
+      }
+
+      search(word) {
+        let node = this.root;
+        for (let i = 0; i < word.length; i++) {
+          const char = word[i];
+          if (!node.children[char]) {
+            return false;
+          }
+          node = node.children[char];
+        }
+        return node.isEndOfWord;
+      }
+
+      startsWith(prefix) {
+        let node = this.root;
+        for (let i = 0; i < prefix.length; i++) {
+          const char = prefix[i];
+          if (!node.children[char]) {
+            return [];
+          }
+          node = node.children[char];
+        }
+        return this.getAllWords(node, prefix);
+      }
+
+      getAllWords(node, prefix) {
+        const words = [];
+        this.dfs(node, prefix, words);
+        return words;
+      }
+
+      dfs(node, prefix, words) {
+        if (node.isEndOfWord) {
+          words.push(prefix);
+        }
+        for (const char in node.children) {
+          this.dfs(node.children[char], prefix + char, words);
+        }
+      }
+    }
+
+    const trie = new Trie();
+    trie.insert("apple");
+    trie.insert("application");
+    trie.insert("banana");
+    trie.insert("bat");
+
+    const inputField = document.getElementById("inputField");
+    const suggestionList = document.getElementById("suggestionList");
+
+    inputField.addEventListener("input", () => {
+      const prefix = inputField.value;
+      const suggestions = trie.startsWith(prefix);
+      suggestionList.innerHTML = "";
+      suggestions.forEach((word) => {
+        const li = document.createElement("li");
+        li.classList.add("suggestion-item", "rounded");
+        li.textContent = word;
+        li.addEventListener("click", () => {
+          inputField.value = word;
+          suggestionList.innerHTML = "";
+        });
+        suggestionList.appendChild(li);
+      });
+    });
+  </script>
+</body>
+</html>

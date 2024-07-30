@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KD-Tree Visualization</title>
+    <style>
+        #canvas {
+            border: 1px solid #000;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800" height="800"></canvas>
+    <script>
+        class Node {
+            constructor(point, axis) {
+                this.point = point;
+                this.left = null;
+                this.right = null;
+                this.axis = axis;
+            }
+        }
+
+        class KDTree {
+            constructor() {
+                this.root = null;
+            }
+
+            insert(point) {
+                const insertRec = (node, point, depth) => {
+                    if (node === null) {
+                        return new Node(point, depth % 2);
+                    }
+                    const axis = node.axis;
+                    if (point[axis] < node.point[axis]) {
+                        node.left = insertRec(node.left, point, depth + 1);
+                    } else {
+                        node.right = insertRec(node.right, point, depth + 1);
+                    }
+                    return node;
+                };
+
+                this.root = insertRec(this.root, point, 0);
+            }
+
+            draw(ctx, node, xMin, xMax, yMin, yMax) {
+                if (node === null) {
+                    return;
+                }
+
+                const axis = node.axis;
+
+                ctx.fillStyle = 'black';
+                ctx.beginPath();
+                ctx.arc(node.point[0], node.point[1], 3, 0, Math.PI * 2, true);
+                ctx.fill();
+
+                if (axis === 0) {
+                    ctx.strokeStyle = 'red';
+                    ctx.beginPath();
+                    ctx.moveTo(node.point[0], yMin);
+                    ctx.lineTo(node.point[0], yMax);
+                    ctx.stroke();
+
+                    this.draw(ctx, node.left, xMin, node.point[0], yMin, yMax);
+                    this.draw(ctx, node.right, node.point[0], xMax, yMin, yMax);
+                } else {
+                    ctx.strokeStyle = 'blue';
+                    ctx.beginPath();
+                    ctx.moveTo(xMin, node.point[1]);
+                    ctx.lineTo(xMax, node.point[1]);
+                    ctx.stroke();
+
+                    this.draw(ctx, node.left, xMin, xMax, yMin, node.point[1]);
+                    this.draw(ctx, node.right, xMin, xMax, node.point[1], yMax);
+                }
+            }
+
+            clearCanvas(ctx, width, height) {
+                ctx.clearRect(0, 0, width, height);
+            }
+        }
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const tree = new KDTree();
+
+        canvas.addEventListener('click', (event) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            tree.insert([x, y]);
+            tree.clearCanvas(ctx, canvas.width, canvas.height);
+            tree.draw(ctx, tree.root, 0, canvas.width, 0, canvas.height);
+        });
+    </script>
+</body>
+</html>

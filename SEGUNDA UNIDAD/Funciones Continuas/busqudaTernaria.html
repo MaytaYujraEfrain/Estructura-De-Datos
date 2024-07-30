@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Búsqueda Binaria y Ternaria con Visualización</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    .result {
+      margin-top: 20px;
+    }
+    .array-container {
+      margin-top: 20px;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .array-item {
+      background-color: #f0f0f0;
+      border: 1px solid #ccc;
+      padding: 8px;
+      margin: 2px;
+      font-size: 0.8em;
+      text-align: center;
+    }
+    .highlight {
+      background-color: yellow;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="mt-5 mb-4 text-center">Búsqueda Binaria y Ternaria con Visualización</h1>
+    <div class="row justify-content-center">
+      <div class="col-md-4">
+        <div class="form-group">
+          <label for="target">Buscar número:</label>
+          <input type="number" id="target" class="form-control" min="1" max="20" step="1" value="10">
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="form-group">
+          <label for="searchType">Tipo de búsqueda:</label>
+          <select id="searchType" class="form-control">
+            <option value="binary">Búsqueda Binaria</option>
+            <option value="ternary">Búsqueda Ternaria</option>
+          </select>
+        </div>
+      </div>
+      <div class="col-md-2">
+        <button class="btn btn-primary btn-block mt-2" onclick="performSearch()">Buscar</button>
+      </div>
+    </div>
+    <div class="result" id="result"></div>
+    <div class="row mt-4">
+      <div class="col-md-12">
+        <div class="array-container" id="array-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS and dependencies -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+  <script>
+    // Función para realizar la búsqueda binaria
+    function binarySearch(target, array) {
+      let steps = 0;
+      let stepsArray = [];
+      let left = 0;
+      let right = array.length - 1;
+
+      while (left <= right) {
+        steps++;
+        let mid = Math.floor((left + right) / 2);
+        let guess = array[mid];
+
+        stepsArray.push({
+          left: left,
+          right: right,
+          mid: mid,
+          array: array.slice()
+        });
+
+        if (guess === target) {
+          return { found: true, index: mid, steps: steps, stepsArray: stepsArray };
+        } else if (guess < target) {
+          left = mid + 1;
+        } else {
+          right = mid - 1;
+        }
+      }
+
+      return { found: false, steps: steps, stepsArray: stepsArray };
+    }
+
+    // Función para realizar la búsqueda ternaria
+    function ternarySearch(target, array) {
+      let steps = 0;
+      let stepsArray = [];
+      let left = 0;
+      let right = array.length - 1;
+
+      while (left <= right) {
+        steps++;
+        let mid1 = Math.floor(left + (right - left) / 3);
+        let mid2 = Math.floor(right - (right - left) / 3);
+        let guess1 = array[mid1];
+        let guess2 = array[mid2];
+
+        stepsArray.push({
+          left: left,
+          right: right,
+          mid1: mid1,
+          mid2: mid2,
+          array: array.slice()
+        });
+
+        if (guess1 === target) {
+          return { found: true, index: mid1, steps: steps, stepsArray: stepsArray };
+        } else if (guess2 === target) {
+          return { found: true, index: mid2, steps: steps, stepsArray: stepsArray };
+        } else if (target < guess1) {
+          right = mid1 - 1;
+        } else if (target > guess2) {
+          left = mid2 + 1;
+        } else {
+          left = mid1 + 1;
+          right = mid2 - 1;
+        }
+      }
+
+      return { found: false, steps: steps, stepsArray: stepsArray };
+    }
+
+    // Función para realizar la búsqueda según el tipo seleccionado
+    function performSearch() {
+      const target = parseInt(document.getElementById('target').value);
+      const array = Array.from({ length: 20 }, (_, index) => index + 1);
+
+      const searchType = document.getElementById('searchType').value;
+      let result, message;
+
+      if (searchType === 'binary') {
+        result = binarySearch(target, array);
+        message = result.found ? `Encontrado ${target} en el índice ${result.index} después de ${result.steps} pasos.` : `${target} no encontrado después de ${result.steps} pasos.`;
+        visualizeSteps(result.stepsArray);
+      } else if (searchType === 'ternary') {
+        result = ternarySearch(target, array);
+        message
+        message = result.found ? `Encontrado ${target} en el índice ${result.index} después de ${result.steps} pasos.` : `${target} no encontrado después de ${result.steps} pasos.`;
+        visualizeSteps(result.stepsArray);
+      }
+
+      displayResult(message);
+    }
+
+    // Función para mostrar el resultado
+    function displayResult(message) {
+      document.getElementById('result').innerHTML = `<div class="alert alert-info">${message}</div>`;
+    }
+
+    // Función para visualizar los pasos de búsqueda
+    function visualizeSteps(stepsArray) {
+      const container = document.getElementById('array-container');
+      container.innerHTML = '';
+
+      stepsArray.forEach((step, index) => {
+        const stepDiv = document.createElement('div');
+        stepDiv.classList.add('col-md-6', 'mb-4');
+        stepDiv.innerHTML = `
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title">Paso ${index + 1}</h5>
+              <div class="array-container">
+                ${step.array.map((item, i) => `
+                  <div class="array-item ${i === step.mid || i === step.mid1 || i === step.mid2 ? 'highlight' : ''}">${item}</div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+        container.appendChild(stepDiv);
+      });
+    }
+  </script>
+</body>
+</html>

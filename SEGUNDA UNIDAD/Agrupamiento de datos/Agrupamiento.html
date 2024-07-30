@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Agrupación de datos en 2D</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .point {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      position: absolute;
+    }
+    .centroid {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      position: absolute;
+      border: 2px solid black;
+    }
+  </style>
+</head>
+<body class="d-flex flex-column align-items-center p-3 bg-light">
+  <h1 class="mb-4">Agrupación de datos en 2D</h1>
+  <form class="mb-4">
+    <div class="mb-3">
+      <label for="n_points" class="form-label">Cantidad de puntos:</label>
+      <input type="number" id="n_points" value="100" class="form-control">
+    </div>
+    <button type="button" onclick="generatePoints()" class="btn btn-primary">Generar puntos</button>
+    <button type="button" onclick="clearCentroids()" class="btn btn-secondary">Limpiar centroides</button>
+  </form>
+  <div id="container" class="position-relative border border-dark bg-white" style="width: 500px; height: 500px;"></div>
+  <script>
+    let points = [];
+    let clusters = [];
+    let centroids = [];
+
+    function generatePoints() {
+      points = [];
+      clusters = [];
+      centroids = [];
+
+      const n_points = parseInt(document.getElementById('n_points').value);
+
+      // Generar datos aleatorios
+      for (let i = 0; i < n_points; i++) {
+        const x = Math.random() * 500;
+        const y = Math.random() * 500;
+        points.push({ x, y });
+      }
+
+      // Limpiar el contenedor antes de agregar nuevos puntos
+      document.getElementById('container').innerHTML = '';
+
+      // Colores de los clusters
+      const clusterColors = [
+        'bg-danger',
+        'bg-success',
+        'bg-primary',
+        'bg-warning',
+        'bg-info',
+        'bg-dark',
+        'bg-secondary',
+        'bg-pink',
+        'bg-teal',
+        'bg-orange'
+      ];
+
+      // Mostrar los puntos agrupados
+      for (let i = 0; i < points.length; i++) {
+        const point = points[i];
+        const div = document.createElement('div');
+        div.classList.add('point', 'bg-dark');
+        div.style.left = `${point.x}px`;
+        div.style.top = `${point.y}px`;
+        document.getElementById('container').appendChild(div);
+      }
+    }
+
+    function clearCentroids() {
+      centroids = [];
+      clusters = [];
+      document.getElementById('container').innerHTML = '';
+      generatePoints();
+    }
+
+    document.getElementById('container').addEventListener('click', function(event) {
+      const rect = this.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      addCentroid(x, y);
+    });
+
+    function addCentroid(x, y) {
+      const centroid = { x, y };
+      centroids.push(centroid);
+
+      const div = document.createElement('div');
+      div.classList.add('centroid', 'bg-primary');
+      div.style.left = `${x - 10}px`;
+      div.style.top = `${y - 10}px`;
+      document.getElementById('container').appendChild(div);
+
+      // Recalcular los clusters
+      recalculateClusters();
+    }
+
+    function recalculateClusters() {
+      // Agrupar los puntos
+      clusters = centroids.map(() => []);
+      for (let i = 0; i < points.length; i++) {
+        let minDistance = Infinity;
+        let closestCluster = -1;
+        for (let j = 0; j < centroids.length; j++) {
+          const distance = Math.sqrt(Math.pow(points[i].x - centroids[j].x, 2) + Math.pow(points[i].y - centroids[j].y, 2));
+          if (distance < minDistance) {
+            minDistance = distance;
+            closestCluster = j;
+          }
+        }
+        clusters[closestCluster].push(points[i]);
+      }
+
+      // Limpiar el contenedor antes de agregar nuevos puntos
+      document.getElementById('container').innerHTML = '';
+
+      // Colores de los clusters
+      const clusterColors = [
+        'bg-danger',
+        'bg-success',
+        'bg-primary',
+        'bg-warning',
+        'bg-info',
+        'bg-dark',
+        'bg-secondary',
+        'bg-pink',
+        'bg-teal',
+        'bg-orange'
+      ];
+
+      // Mostrar los puntos agrupados
+      for (let i = 0; i < clusters.length; i++) {
+        for (let j = 0; j < clusters[i].length; j++) {
+          const point = clusters[i][j];
+          const div = document.createElement('div');
+          div.classList.add('point', clusterColors[i % clusterColors.length]);
+          div.style.left = `${point.x}px`;
+          div.style.top = `${point.y}px`;
+          document.getElementById('container').appendChild(div);
+        }
+        const centroid = centroids[i];
+        const div = document.createElement('div');
+        div.classList.add('centroid', clusterColors[i % clusterColors.length]);
+        div.style.left = `${centroid.x - 10}px`;
+        div.style.top = `${centroid.y - 10}px`;
+        document.getElementById('container').appendChild(div);
+      }
+    }
+  </script>
+</body>
+</html>

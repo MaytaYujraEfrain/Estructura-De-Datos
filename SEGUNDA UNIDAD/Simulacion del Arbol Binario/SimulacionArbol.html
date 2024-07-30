@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulación de Árbol Binario</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-weight: 700;
+        }
+        #canvas {
+            border: 2px solid #3498db;
+            border-radius: 10px;
+            margin-top: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            background-color: #ffffff;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            display: flex;
+            margin-right: 10px;
+        }
+        input[type="number"] {
+            padding: 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px 0 0 5px;
+            font-size: 16px;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .btn-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+        .btn-danger {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+        .info-box {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: #ffffff;
+            border: 1px solid #3498db;
+            padding: 15px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 5px;
+            font-size: 14px;
+            max-width: 300px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .node {
+            transition: all 0.3s ease;
+        }
+        .node-insert {
+            fill: #2ecc71;
+        }
+        .node-search {
+            fill: #f39c12;
+        }
+        .node-delete {
+            fill: #e74c3c;
+        }
+        .line {
+            stroke: #3498db;
+            stroke-width: 2;
+            transition: all 0.3s ease;
+        }
+        .line-highlight {
+            stroke: #f39c12;
+            stroke-width: 3;
+        }
+        .comparison {
+            font-size: 14px;
+            font-weight: bold;
+            color: #ffffff;
+            position: absolute;
+            z-index: 1;
+            background: rgba(52, 152, 219, 0.9);
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        .comparison-insert {
+            background: rgba(46, 204, 113, 0.9);
+        }
+        .comparison-search {
+            background: rgba(243, 156, 18, 0.9);
+        }
+        .comparison-delete {
+            background: rgba(231, 76, 60, 0.9);
+        }
+        @keyframes blink-found {
+            0% { fill: #f39c12; }
+            50% { fill: #2ecc71; }
+            100% { fill: #f39c12; }
+        }
+        @keyframes blink-delete {
+            0% { fill: #e74c3c; }
+            50% { fill: #ffffff; }
+            100% { fill: #e74c3c; }
+        }
+        .node-found {
+            animation: blink-found 0.5s linear infinite;
+        }
+        .node-delete {
+            animation: blink-delete 0.5s linear infinite;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1><i class="fas fa-tree"></i> Simulación de Árbol Binario</h1>
+    <div class="controls">
+        <div class="input-group">
+            <input type="number" id="value" placeholder="Valor" aria-label="Valor">
+            <button class="btn btn-primary" onclick="insertNode()"><i class="fas fa-plus"></i> Insertar</button>
+        </div>
+        <button class="btn btn-primary" onclick="searchNode()"><i class="fas fa-search"></i> Buscar</button>
+        <button class="btn btn-danger" onclick="deleteNode()"><i class="fas fa-trash-alt"></i> Eliminar</button>
+    </div>
+    <canvas id="canvas" width="800" height="600"></canvas>
+    <div id="info-box" class="info-box"></div>
+</div>
+
+<script>
+class Node {
+    constructor(value) {
+        this.value = value;
+        this.left = null;
+        this.right = null;
+    }
+}
+
+class BinaryTree {
+    constructor() {
+        this.root = null;
+    }
+
+    insert(value) {
+        const newNode = new Node(value);
+        if (!this.root) {
+            this.root = newNode;
+            return;
+        }
+        this._insertNode(this.root, newNode);
+    }
+
+    _insertNode(node, newNode) {
+        if (newNode.value < node.value) {
+            if (!node.left) {
+                node.left = newNode;
+            } else {
+                this._insertNode(node.left, newNode);
+            }
+        } else {
+            if (!node.right) {
+                node.right = newNode;
+            } else {
+                this._insertNode(node.right, newNode);
+            }
+        }
+    }
+
+    search(value) {
+        return this._searchNode(this.root, value);
+    }
+
+    _searchNode(node, value) {
+        if (!node) {
+            return null;
+        }
+        if (value === node.value) {
+            return node;
+        }
+        return value < node.value ? this._searchNode(node.left, value) : this._searchNode(node.right, value);
+    }
+
+    delete(value) {
+        this.root = this._deleteNode(this.root, value);
+    }
+
+    _deleteNode(node, value) {
+        if (!node) {
+            return null;
+        }
+        if (value < node.value) {
+            node.left = this._deleteNode(node.left, value);
+        } else if (value > node.value) {
+            node.right = this._deleteNode(node.right, value);
+        } else {
+            if (!node.left && !node.right) {
+                return null;
+            }
+            if (!node.left) {
+                return node.right;
+            }
+            if (!node.right) {
+                return node.left;
+            }
+            let minNode = this._findMinNode(node.right);
+            node.value = minNode.value;
+            node.right = this._deleteNode(node.right, minNode.value);
+        }
+        return node;
+    }
+
+    _findMinNode(node) {
+        while (node.left) {
+            node = node.left;
+        }
+        return node;
+    }
+
+    display() {
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        this._drawNode(ctx, this.root, canvas.width / 2, 30, 100);
+    }
+
+    _drawNode(ctx, node, x, y, offset, highlight = false, operation = '') {
+        if (!node) return;
+
+        ctx.beginPath();
+        ctx.arc(x, y, 20, 0, Math.PI * 2, true);
+        
+        if (highlight) {
+            switch(operation) {
+                case 'insert':
+                    ctx.fillStyle = '#2ecc71';
+                    break;
+                case 'search':
+                    ctx.fillStyle = '#f39c12';
+                    break;
+                case 'delete':
+                    ctx.fillStyle = '#e74c3c';
+                    break;
+                case 'found':
+                    ctx.fillStyle = '#f39c12';
+                    break;
+                default:
+                    ctx.fillStyle = '#3498db';
+            }
+        } else {
+            ctx.fillStyle = '#ffffff';
+        }
+        
+        ctx.fill();
+        ctx.strokeStyle = '#3498db';
+        ctx.stroke();
+        ctx.fillStyle = '#2c3e50';
+        ctx.font = '14px Roboto';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(node.value, x, y);
+
+        if (node.left) {
+            ctx.beginPath();
+            ctx.moveTo(x, y + 20);
+            ctx.lineTo(x - offset, y + 70);
+            ctx.strokeStyle = highlight ? '#f39c12' : '#3498db';
+            ctx.lineWidth = highlight ? 3 : 2;
+            ctx.stroke();
+            this._drawNode(ctx, node.left, x - offset, y + 70, offset / 2, false, operation);
+        }
+
+        if (node.right) {
+            ctx.beginPath();
+            ctx.moveTo(x, y + 20);
+            ctx.lineTo(x + offset, y + 70);
+            ctx.strokeStyle = highlight ? '#f39c12' : '#3498db';
+            ctx.lineWidth = highlight ? 3 : 2;
+            ctx.stroke();
+            this._drawNode(ctx, node.right, x + offset, y + 70, offset / 2, false, operation);
+        }
+    }
+
+    animateInsert(value) {
+        const newNode = new Node(value);
+        if (!this.root) {
+            this.root = newNode;
+            this.display();
+            return;
+        }
+        this._animateInsert(this.root, newNode, canvas.width / 2, 30, 100);
+    }
+
+    _animateInsert(node, newNode, x, y, offset) {
+        const ctx = document.getElementById('canvas').getContext('2d');
+        this._drawNode(ctx, node, x, y, offset, true, 'insert');
+        const comparisonDiv = document.createElement('div');
+        comparisonDiv.className = 'comparison comparison-insert';
+        if (newNode.value < node.value) {
+            comparisonDiv.style.left = `${x - 50}px`;
+            comparisonDiv.style.top = `${y + 10}px`;
+            comparisonDiv.textContent = `${newNode.value} < ${node.value}`;
+            document.body.appendChild(comparisonDiv);
+            setTimeout(() => {
+                document.body.removeChild(comparisonDiv);
+                if (!node.left) {
+                    node.left = newNode;
+                    this.display();
+                } else {
+                    this._animateInsert(node.left, newNode, x - offset, y + 70, offset / 2);
+                }
+            }, 1000);
+        } else {
+            comparisonDiv.style.left = `${x + 30}px`;
+            comparisonDiv.style.top = `${y + 10}px`;
+            comparisonDiv.textContent = `${newNode.value} >= ${node.value}`;
+            document.body.appendChild(comparisonDiv);
+            setTimeout(() => {
+                document.body.removeChild(comparisonDiv);
+                if (!node.right) {
+                    node.right = newNode;
+                    this.display();
+                } else {
+                    this._animateInsert(node.right, newNode, x + offset, y + 70, offset / 2);
+                }
+            }, 1000);
+        }
+    }
+
+    animateSearch(value) {
+        const ctx = document.getElementById('canvas').getContext('2d');
+        const infoBox = document.getElementById('info-box');
+        infoBox.innerHTML = '';
+        this._animateSearch(this.root, value, canvas.width / 2, 30, 100, infoBox);
+    }
+
+    _animateSearch(node, value, x, y, offset, infoBox) {
+        const ctx = document.getElementById('canvas').getContext('2d');
+        const comparisonDiv = document.createElement('div');
+        comparisonDiv.className = 'comparison comparison-search';
+        if (node === null) {
+            comparisonDiv.textContent = 'Nodo no encontrado';
+            document.body.appendChild(comparisonDiv);
+            setTimeout(() => document.body.removeChild(comparisonDiv), 1000);
+            return;
+        }
+
+        this._drawNode(ctx, node, x, y, offset, true, 'search');
+        if (value < node.value) {
+            comparisonDiv.style.left = `${x - 50}px`;
+            comparisonDiv.style.top = `${y + 10}px`;
+            comparisonDiv.textContent = `${value} < ${node.value}`;
+            infoBox.innerHTML += `<p>Buscando en el nodo con valor ${node.value}: ${value} < ${node.value}</p>`;
+            document.body.appendChild(comparisonDiv);
+            setTimeout(() => {
+                document.body.removeChild(comparisonDiv);
+                this._animateSearch(node.left, value, x - offset, y + 70, offset / 2, infoBox);
+            }, 1000);
+        } else if (value > node.value) {
+            comparisonDiv.style.left = `${x + 30}px`;
+            comparisonDiv.style.top = `${y + 10}px`;
+            comparisonDiv.textContent = `${value} > ${node.value}`;
+            infoBox.innerHTML += `<p>Buscando en el nodo con valor ${node.value}: ${value} > ${node.value}</p>`;
+            document.body.appendChild(comparisonDiv);
+            setTimeout(() => {
+                document.body.removeChild(comparisonDiv);
+                this._animateSearch(node.right, value, x + offset, y + 70, offset / 2, infoBox);
+            }, 1000);
+        } else {
+            infoBox.innerHTML += `<p><strong>Nodo con valor ${node.value} encontrado en el canvas.</strong></p>`;
+            this._blinkNode(ctx, node, x, y, offset, 'found');
+        }
+    }
+
+    _blinkNode(ctx, node, x, y, offset, operation) {
+        let blinkCount = 0;const blinkInterval = setInterval(() => {
+            this._drawNode(ctx, node, x, y, offset, blinkCount % 2 === 0, operation);
+            blinkCount++;
+            if (blinkCount >= 6) {
+                clearInterval(blinkInterval);
+                this.display(); // Restaurar el árbol normal después del parpadeo
+            }
+        }, 250);
+    }
+
+    animateDelete(value) {
+        const node = this.search(value);
+        if (node) {
+            this._animateSearch(this.root, value, canvas.width / 2, 30, 100, document.getElementById('info-box'));
+            setTimeout(() => {
+                const ctx = document.getElementById('canvas').getContext('2d');
+                const nodePos = this._findNodePosition(this.root, value, canvas.width / 2, 30, 100);
+                if (nodePos) {
+                    this._blinkNode(ctx, node, nodePos.x, nodePos.y, nodePos.offset, 'delete');
+                    setTimeout(() => {
+                        this.delete(value);
+                        this.display();
+                    }, 3000);
+                }
+            }, 3000);
+        } else {
+            alert('Nodo no encontrado');
+        }
+    }
+
+    _findNodePosition(node, value, x, y, offset) {
+        if (!node) return null;
+        if (node.value === value) return { x, y, offset };
+        if (value < node.value) {
+            return this._findNodePosition(node.left, value, x - offset, y + 70, offset / 2);
+        } else {
+            return this._findNodePosition(node.right, value, x + offset, y + 70, offset / 2);
+        }
+    }
+}
+
+const tree = new BinaryTree();
+
+function insertNode() {
+    const value = parseInt(document.getElementById('value').value);
+    if (!isNaN(value)) {
+        tree.animateInsert(value);
+    }
+}
+
+function searchNode() {
+    const value = parseInt(document.getElementById('value').value);
+    if (!isNaN(value)) {
+        tree.animateSearch(value);
+    }
+}
+
+function deleteNode() {
+    const value = parseInt(document.getElementById('value').value);
+    if (!isNaN(value)) {
+        tree.animateDelete(value);
+    }
+}
+</script>
+
+</body>
+</html>

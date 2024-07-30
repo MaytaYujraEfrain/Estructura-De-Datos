@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Agrupación de Dulces</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        table {
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <h1 class="text-3xl font-bold mb-4">Agrupación de Dulces</h1>
+
+    <div class="w-full max-w-md mx-auto bg-white rounded shadow-md p-8">
+        <table id="sweetTable" class="w-full text-left">
+            <thead>
+                <tr class="bg-gray-200">
+                    <th class="px-4 py-2">Nombre</th>
+                    <th class="px-4 py-2">Tipo</th>
+                    <th class="px-4 py-2">Precio</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" onclick="groupSweetsByType()">Agrupar por Tipo</button>
+
+        <div id="chart"></div>
+    </div>
+
+    <script>
+        // Datos de dulces
+        const sweets = [
+            { name: "Helado de vainilla", type: "Helado", price: 5.00 },
+            { name: "Helado de chocolate", type: "Helado", price: 5.50 },
+            { name: "Helado de fresa", type: "Helado", price: 5.00 },
+            { name: "Helado de menta", type: "Helado", price: 5.50 },
+            { name: "Helado de limón", type: "Helado", price: 5.00 },
+            { name: "Helado de café", type: "Helado", price: 5.50 },
+            { name: "Helado de pistacho", type: "Helado", price: 6.00 },
+            { name: "Helado de cookies", type: "Helado", price: 6.00 },
+            { name: "Helado de dulce de leche", type: "Helado", price: 6.00 },
+            { name: "Helado de oreo", type: "Helado", price: 6.00 },
+            { name: "Torta de chocolate", type: "Torta", price: 3.50 },
+            { name: "Torta de vainilla", type: "Torta", price: 4.00 },
+            { name: "Torta de zanahoria", type: "Torta", price: 4.00 },
+            { name: "Torta de red velvet", type: "Torta", price: 4.50 },
+            { name: "Torta de moka", type: "Torta", price: 4.50 },
+            { name: "Torta de queso", type: "Torta", price: 5.00 },
+            { name: "Torta de manzana", type: "Torta", price: 4.00 },
+            { name: "Torta de plátano", type: "Torta", price: 4.00 },
+            { name: "Torta de nuez", type: "Torta", price: 4.50 },
+            { name: "Torta de coco", type: "Torta", price: 4.50 },
+            { name: "Galleta de chispas de chocolate", type: "Galleta", price: 2.00 },
+            { name: "Galleta de avena y pasas", type: "Galleta", price: 2.00 },
+            { name: "Galleta de mantequilla", type: "Galleta", price: 2.50 },
+            { name: "Galleta de jengibre", type: "Galleta", price: 2.50 },
+            { name: "Galleta de limón", type: "Galleta", price: 2.00 },
+            { name: "Galleta de coco", type: "Galleta", price: 2.50 },
+            { name: "Galleta de nuez", type: "Galleta", price: 2.50 },
+            { name: "Galleta de canela", type: "Galleta", price: 2.00 },
+            { name: "Galleta de vainilla", type: "Galleta", price: 2.00 },
+            { name: "Galleta de almendra", type: "Galleta", price: 2.50 },
+            { name: "Brownie de chocolate", type: "Brownie", price: 4.00 },
+            { name: "Brownie de nueces", type: "Brownie", price: 4.50 },
+            { name: "Brownie de caramelo", type: "Brownie", price: 4.50 },
+            { name: "Brownie de menta", type: "Brownie", price: 4.50 },
+            { name: "Brownie de frambuesa", type: "Brownie", price: 4.50 },
+            { name: "Brownie de coco", type: "Brownie", price: 4.50 },
+            { name: "Brownie de dulce de leche", type: "Brownie", price: 5.00 },
+            { name: "Brownie de oreo", type: "Brownie", price: 5.00 },
+            { name: "Brownie de maní", type: "Brownie", price: 4.50 },
+            { name: "Brownie de crema de avellana", type: "Brownie", price: 5.00 },
+            { name: "Tarta de manzana", type: "Tarta", price: 6.00 },
+            { name: "Tarta de queso", type: "Tarta", price: 6.50 },
+            { name: "Tarta de limón", type: "Tarta", price: 6.00 },
+            { name: "Tarta de nuez", type: "Tarta", price: 6.50 },
+            { name: "Tarta de coco", type: "Tarta", price: 6.00 },
+            { name: "Tarta de frambuesa", type: "Tarta", price: 6.50 },
+            { name: "Tarta de caramelo", type: "Tarta", price: 6.50 },
+            { name: "Tarta de chocolate", type: "Tarta", price: 7.00 },
+            { name: "Tarta de durazno", type: "Tarta", price: 6.00 },
+            { name: "Tarta de cereza", type: "Tarta", price: 6.50 },
+            { name: "Muffin de vainilla", type: "Muffin", price: 3.00 },
+            { name: "Muffin de chocolate", type: "Muffin", price: 3.50 },
+            { name: "Muffin de arándanos", type: "Muffin", price: 3.00 },
+            { name: "Muffin de plátano", type: "Muffin", price: 3.00 },
+            { name: "Muffin de zanahoria", type: "Muffin", price: 3.50 },
+            { name: "Muffin de manzana", type: "Muffin", price: 3.00 },
+            { name: "Muffin de frambuesa", type: "Muffin", price: 3.50 },
+            { name: "Muffin de coco", type: "Muffin", price: 3.00 },
+            { name: "Muffin de nuez", type: "Muffin", price: 3.50 },
+            { name: "Muffin de chispas de chocolate", type: "Muffin", price: 3.50 },
+            { name: "Cupcake de vainilla", type: "Cupcake", price: 4.50 },
+            { name: "Cupcake de chocolate", type: "Cupcake", price: 5.00 },
+            { name: "Cupcake de red velvet", type: "Cupcake", price: 5.00 },
+            { name: "Cupcake de moka", type: "Cupcake", price: 5.00 },
+            { name: "Cupcake de zanahoria", type: "Cupcake", price: 5.00 },
+            { name: "Cupcake de limón", type: "Cupcake", price: 4.50 },
+            { name: "Cupcake de frambuesa", type: "Cupcake", price: 5.00 },
+            { name: "Cupcake de coco", type: "Cupcake", price: 4.50 },
+            { name: "Cupcake de nuez", type: "Cupcake", price: 5.00 },
+            { name: "Cupcake de chispas de chocolate", type: "Cupcake", price: 5.00 }
+        ];
+
+        // Función para agrupar dulces por tipo
+        function groupSweetsByType() {
+            // Crear un mapa para almacenar los dulces por tipo
+            const typeMap = new Map();
+
+            // Agrupar dulces por tipo
+            sweets.forEach(sweet => {
+                if (!typeMap.has(sweet.type)) {
+                    typeMap.set(sweet.type, []);
+                }
+                typeMap.get(sweet.type).push(sweet);
+            });
+
+            // Mostrar los dulces agrupados por tipo
+            const tableBody = document.getElementById("sweetTable").getElementsByTagName("tbody")[0];
+            tableBody.innerHTML = "";
+
+            typeMap.forEach((sweets, type) => {
+                const typeRow = document.createElement("tr");
+                const typeCell = document.createElement("td");
+                typeCell.colSpan = 3;
+                typeCell.textContent = `Tipo: ${type}`;
+                typeCell.classList.add("bg-gray-200", "font-bold");
+                typeRow.appendChild(typeCell);
+                tableBody.appendChild(typeRow);
+
+                sweets.forEach(sweet => {
+                    const row = document.createElement("tr");
+                    const nameCell = document.createElement("td");
+                    const priceCell = document.createElement("td");
+
+                    nameCell.textContent = sweet.name;
+                    priceCell.textContent = sweet.price.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
+
+                    row.appendChild(nameCell);
+                    row.appendChild(priceCell);
+                    tableBody.appendChild(row);
+                });
+            });
+
+            // Mostrar la agrupación en modo gráfico
+            const chart = d3.select("#chart")
+                .append("svg")
+                .attr("width", 500)
+                .attr("height", 300);
+
+            const xScale = d3.scaleBand()
+                .domain(typeMap.keys())
+                .range([0, 500])
+                .padding(0.2);
+
+            const yScale = d3.scaleLinear()
+                .domain([0, d3.max(sweets, d => d.price)])
+                .range([300, 0]);
+
+            chart.append("g")
+                .attr("transform", `translate(0, 300)`)
+                .call(d3.axisBottom(xScale));
+
+            chart.append("g")
+                .attr("transform", `translate(0, 0)`)
+                .call(d3.axisLeft(yScale));
+
+            chart.selectAll("circle")
+                .data(sweets)
+                .enter()
+                .append("circle")
+                .attr("cx", d => xScale(d.type))
+                .attr("cy", d => yScale(d.price))
+                .attr("r", 5)
+                .attr("fill", d => d.type === "Helado" ? "red" : d.type === "Torta" ? "blue" : d.type === "Galleta" ? "green" : d.type === "Brownie" ? "yellow" : d.type === "Tarta" ? "orange" : d.type === "Muffin" ? "purple" : d.type === "Cupcake" ? "pink" : "black");
+        }
+    </script>
+</body>
+</html>

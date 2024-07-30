@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-VP Tree Image Search</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .results {
+            margin-top: 20px;
+        }
+        .result {
+            margin-bottom: 10px;
+        }
+        .result img {
+            width: 100px;
+            height: 100px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="mt-5">Multi-VP Tree Image Search</h1>
+        <div class="form-group">
+            <label for="query">Query Category: </label>
+            <input type="text" id="query" class="form-control" placeholder="e.g. playa">
+        </div>
+        <button class="btn btn-primary" onclick="searchImages()">Search</button>
+        <div class="results row" id="results"></div>
+    </div>
+
+    <script>
+        class MultiVPTree {
+            constructor(points, numReferences = 2, leafSize = 10) {
+                this.numReferences = numReferences;
+                this.leafSize = leafSize;
+                this.root = this.buildTree(points);
+            }
+
+            buildTree(points) {
+                if (points.length <= this.leafSize) {
+                    return { points: points };
+                }
+
+                const references = [];
+                for (let i = 0; i < this.numReferences; i++) {
+                    const index = Math.floor(Math.random() * points.length);
+                    references.push(points[index]);
+                }
+
+                const distances = points.map(point => references.map(ref => this.distance(point, ref)));
+                const medianDistances = references.map((_, i) => this.median(distances.map(d => d[i])));
+                const leftPoints = points.filter((_, idx) => distances[idx].every((d, i) => d <= medianDistances[i]));
+                const rightPoints = points.filter((_, idx) => !leftPoints.includes(points[idx]));
+
+                return {
+                    references: references,
+                    medianDistances: medianDistances,
+                    left: this.buildTree(leftPoints),
+                    right: this.buildTree(rightPoints)
+                };
+            }
+
+            search(query, k = 1) {
+                return this._search(this.root, query, k);
+            }
+
+            _search(node, query, k) {
+                if (node.points) {
+                    const distances = node.points.map(point => this.distance(query, point));
+                    return node.points.map((point, idx) => [point, distances[idx]]).sort((a, b) => a[1] - b[1]).slice(0, k);
+                }
+
+                const queryDistances = node.references.map(ref => this.distance(query, ref));
+                const exploreLeft = queryDistances.every((d, i) => d <= node.medianDistances[i]);
+                const bestBranch = exploreLeft ? node.left : node.right;
+                const otherBranch = exploreLeft ? node.right : node.left;
+                let bestResults = this._search(bestBranch, query, k);
+
+                const bestDistances = bestResults.map(result => result[1]);
+                if (queryDistances.some((d, i) => d <= node.medianDistances[i] + Math.max(...bestDistances))) {
+                    const otherResults = this._search(otherBranch, query, k);
+                    bestResults = bestResults.concat(otherResults).sort((a, b) => a[1] - b[1]).slice(0, k);
+                }
+                return bestResults;
+            }
+
+            distance(a, b) {
+                return a === b ? 0 : 1;
+            }
+
+            median(values) {
+                values.sort((a, b) => a - b);
+               
+                const mid = Math.floor(values.length / 2);
+                return values.length % 2 === 0 ? (values[mid - 1] + values[mid]) / 2 : values[mid];
+            }
+        }
+
+        const points = [
+            ["paisaje", "https://concepto.de/wp-content/uploads/2015/03/paisaje-e1549600034372.jpg"],
+            ["playa", "https://content.r9cdn.net/rimg/dimg/78/70/001b704a-city-15939-18738286522.jpg?width=1366&height=768&xhint=1483&yhint=964&crop=true"],
+            ["calle", "https://st3.idealista.com/news/archivos/styles/fullwidth_xl/public/2022-03/calle_de_alcala_2_1.jpg?VersionId=j2l3VmrMQO22zcCf_KihPblcxRwCBk3S&itok=xJy1lNse"],
+            ["paisaje", "https://concepto.de/wp-content/uploads/2015/03/paisaje-2-e1549600987975.jpg"],
+            ["playa", "https://www.costacruceros.com/content/dam/costa/costa-magazine/articles-magazine/beaches/mexico-beaches/spiagge-di-akumal_m.jpg.image.694.390.low.jpg"],
+            ["calle", "https://ciudadesquecaminan.org/wp-content/uploads/2023/09/Callegrafia-foto.png"],
+            ["montaña", "https://www.culturagenial.com/es/wp-content/uploads/2022/06/montana_filtro.webp"],
+            ["desierto", "https://www.tourradar.com/days-to-come/wp-content/uploads/2019/07/desierto-sahara-marruecos.jpg"],
+            ["bosque", "https://i.blogs.es/cfdaed/bosque-mono-/1366_2000.jpg"],
+            ["lago", "https://www.viajarmepone.com/wp-content/uploads/2021/01/lagos-bonitos.jpg"],
+            ["ciudad", "https://upload.wikimedia.org/wikipedia/commons/e/e7/Skyline_de_Madrid.jpg"],
+            ["río", "https://www.nationalgeographic.com.es/medio/2020/06/04/rio-caqueta_6b11f4e0_1500x1000.jpg"],
+            ["cueva", "https://www.euston96.com/wp-content/uploads/2020/09/cueva.jpg"],
+            ["volcán", "https://www.nationalgeographic.com.es/medio/2020/11/04/volcan_f905ffde_1500x1000.jpg"],
+            ["catarata", "https://www.turismoasturias.es/documents/11022/61294/Cascada+de+Oneta/fbda4f4e-9e68-4e37-9511-15b013c9ae65"],
+            ["campo", "https://www.ecoticias.com/wp-content/uploads/2019/11/campo.jpg"],
+            ["selva", "https://i0.wp.com/www.selvaviva.ec/wp-content/uploads/2018/01/selva.jpg"],
+            ["glaciar", "https://www.meteorologiaenred.com/wp-content/uploads/2021/06/glaciar.jpg"],
+            ["isla", "https://upload.wikimedia.org/wikipedia/commons/4/4f/Isla_della_cona.jpg"],
+            ["pueblo", "https://viajes.nationalgeographic.com.es/medio/2018/09/18/pueblo-de-alquezar-en-la-sierra-de-guara_215c0b9b_1200x630.jpg"]
+        ];
+
+        const tree = new MultiVPTree(points);
+
+        function searchImages() {
+            const queryInput = document.getElementById('query').value;
+            const query = queryInput.trim();
+            const results = tree.search(query, 3);
+
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+            results.forEach(result => {
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'col-md-4 result';
+                resultDiv.innerHTML = `
+                    <div class="card">
+                        <img src="${result[0][1]}" class="card-img-top" alt="${result[0][0]}">
+                        <div class="card-body">
+                            <p class="card-text">${result[0][0]}</p>
+                        </div>
+                    </div>`;
+                resultsDiv.appendChild(resultDiv);
+            });
+        }
+    </script>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+</html>

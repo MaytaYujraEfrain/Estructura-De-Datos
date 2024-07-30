@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>3D KD-Tree Visualization</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+class KDNode {
+    constructor(point, axis) {
+        this.point = point;
+        this.left = null;
+        this.right = null;
+        this.axis = axis;
+    }
+}
+
+class KDTree {
+    constructor(points, depth = 0) {
+        const k = 3; // Tres dimensiones
+        const n = points.length;
+        const axis = depth % k;
+
+        if (n === 0) {
+            this.root = null;
+        } else {
+            // Ordenar los puntos y escoger el punto mediano
+            points.sort((a, b) => a[axis] - b[axis]);
+            const median = Math.floor(n / 2);
+
+            // Crear el nodo y construir los subárboles
+            this.root = new KDNode(points[median], axis);
+            this.root.left = new KDTree(points.slice(0, median), depth + 1).root;
+            this.root.right = new KDTree(points.slice(median + 1), depth + 1).root;
+        }
+    }
+
+    insert(point, node = this.root, depth = 0) {
+        if (node === null) {
+            const axis = depth % 3;
+            return new KDNode(point, axis);
+        }
+
+        const axis = node.axis;
+        if (point[axis] < node.point[axis]) {
+            node.left = this.insert(point, node.left, depth + 1);
+        } else {
+            node.right = this.insert(point, node.right, depth + 1);
+        }
+
+        return node;
+    }
+}
+
+// Datos de ejemplo
+const points = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9],
+    [10, 11, 12],
+    [13, 14, 15],
+    [5, 3, 2],
+    [9, 6, 8],
+    [3, 7, 4],
+    [8, 1, 9]
+];
+
+// Crear el KD-Tree
+const tree = new KDTree(points);
+
+// Crear la escena
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+// Añadir los puntos a la escena
+function addPoint(point) {
+    const geometry = new THREE.SphereGeometry(0.1, 32, 32);
+    const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const sphere = new THREE.Mesh(geometry, material);
+    sphere.position.set(point[0], point[1], point[2]);
+    scene.add(sphere);
+}
+
+function traverse(node) {
+    if (node !== null) {
+        addPoint(node.point);
+        traverse(node.left);
+        traverse(node.right);
+    }
+}
+
+traverse(tree.root);
+
+camera.position.z = 20;
+
+function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+}
+
+animate();
+</script>
+</body>
+</html>

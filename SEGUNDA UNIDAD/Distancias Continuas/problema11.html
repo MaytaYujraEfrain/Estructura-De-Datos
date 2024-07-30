@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Recomendación de Música</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to right, #e0eafc, #cfdef3);
+            margin: 0;
+            padding: 20px;
+            background-image: url('https://img.freepik.com/fotos-premium/notas-musicales-estilo-neon-sobre-fondo-oscuro_409674-1254.jpg');
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-size: 28px;
+            color: #333;
+        }
+
+        h2 {
+            margin-bottom: 15px;
+            font-size: 22px;
+            color: #555;
+        }
+
+        .search-box {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+        }
+
+        .suggestions {
+            position: absolute;
+            width: 100%;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1;
+        }
+
+        .suggestions li {
+            padding: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .suggestions li:hover {
+            background-color: #f9f9f9;
+        }
+
+        .result-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+            text-align: left;
+        }
+
+        .result-item {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .result-item:hover {
+            background-color: #f9f9f9;
+        }
+
+        .selected {
+            background-color: #d9f0ff;
+        }
+
+        .result-item img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        button {
+            background: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Sistema de Recomendación de Música</h1>
+        <h2>Buscar Canciones</h2>
+        <div class="search-box">
+            <input type="text" id="search-input" placeholder="Escribe para buscar canciones...">
+            <ul class="suggestions"></ul>
+        </div>
+        <h2>Buscar Canciones Similares</h2>
+        <button onclick="findSimilarSongs()">Buscar</button>
+        <h2>Resultados</h2>
+        <ul class="result-list">
+            <!-- Resultados se mostrarán aquí -->
+        </ul>
+    </div>
+    <script>
+        // Datos de las canciones (ID, [Tempo, Energía, Popularidad], Nombre, Imagen)
+        let songs = [
+            { id: 1, features: [95, 85, 88], name: "Tusa - Karol G, Nicki Minaj", image: "https://example.com/tusa.jpg" },
+            { id: 2, features: [100, 80, 90], name: "China - Anuel AA, Daddy Yankee, Karol G, Ozuna, J Balvin", image: "https://example.com/china.jpg" },
+            { id: 3, features: [98, 82, 87], name: "Adictiva - Daddy Yankee, Anuel AA", image: "https://example.com/adictiva.jpg" },
+            { id: 4, features: [96, 84, 85], name: "Baila Baila Baila - Ozuna", image: "https://example.com/baila.jpg" },
+            { id: 5, features: [92, 88, 86], name: "Con Calma - Daddy Yankee, Snow", image: "https://example.com/concalma.jpg" },
+            { id: 6, features: [100, 85, 89], name: "BEBE - 6ix9ine, Anuel AA", image: "https://example.com/bebe.jpg" },
+            { id: 7, features: [105, 90, 92], name: "Vaina Loca - Ozuna, Manuel Turizo", image: "https://example.com/vaina.jpg" },
+            { id: 8, features: [98, 87, 88], name: "Secreto - Anuel AA, Karol G", image: "https://example.com/secreto.jpg" },
+            { id: 9, features: [94, 82, 85], name: "Pa' Mala Yo - Bad Bunny", image: "https://example.com/pamalayo.jpg" },
+            { id: 10, features: [96, 83, 87], name: "Te Robaré - Nicky Jam, Ozuna", image: "https://example.com/terobare.jpg" },
+            { id: 11, features: [102, 88, 90], name: "Ella Quiere Beber - Anuel AA, Romeo Santos", image: "https://example.com/ellaquiere.jpg" },
+            { id: 12, features: [97, 85, 88], name: "Soltera - Lunay, Daddy Yankee, Bad Bunny", image: "https://example.com/soltera.jpg" },
+            { id: 13, features: [99, 86, 89], name: "Sola - Anuel AA", image: "https://example.com/sola.jpg" },
+            { id: 14, features: [93, 80, 82], name: "Dura - Daddy Yankee", image: "https://example.com/dura.jpg" },
+            { id: 15, features: [95, 84, 86], name: "La Romana - Bad Bunny, El Alfa", image: "https://example.com/laromana.jpg" },
+            { id: 16, features: [97, 85, 88], name: "Si Supieras - Daddy Yankee, Wisin & Yandel", image: "https://example.com/sisupieras.jpg" },
+            { id: 17, features: [96, 83, 85], name: "Quiere Beber - Anuel AA", image: "https://example.com/quierebeber.jpg" },
+            { id: 18, features: [98, 86, 89], name: "La Modelo - Ozuna, Cardi B", image: "https://example.com/lamodelo.jpg" },
+            { id: 19, features: [94, 82, 84], name: "Hasta Abajo - Yandel", image: "https://example.com/hastaabajo.jpg" },
+            { id: 20, features: [97, 85, 87], name: "Chambea - Bad Bunny", image: "https://example.com/chambea.jpg" },
+            { id: 21, features: [100, 88, 90], name: "Hablamos Mañana - Bad Bunny, Duki, Pablo Chill-E", image: "https://example.com/hablamos.jpg" },
+            { id: 22, features: [92, 82, 85], name: "Diles - Bad Bunny, Ozuna, Farruko, Arcangel", image: "https://example.com/diles.jpg" },
+            { id: 23, features: [95, 83, 86], name: "MIA - Bad Bunny, Drake", image: "https://example.com/mia.jpg" },
+            { id: 24, features: [96, 84, 87], name: "Amorfoda - Bad Bunny", image: "https://example.com/amorfoda.jpg" },
+            { id: 25, features: [98, 87, 89], name: "Dakiti - Bad Bunny, Jhay Cortez", image: "https://example.com/dakiti.jpg" },
+            { id: 26, features: [94, 82, 85], name: "Coronao Now - El Alfa, Lil Pump", image: "https://example.com/coronao.jpg" },
+            { id: 27, features: [97, 85, 88], name: "Te Boté - Nio Garcia, Casper Magico, Bad Bunny", image: "https://example.com/tebote.jpg" },
+            { id: 28, features: [100, 88, 91], name: "Me Gusta - Shakira, Anuel AA", image: "https://example.com/megusta.jpg" },
+            { id: 29, features: [98, 86, 89], name: "Baila Baila Baila Remix - Ozuna, Daddy Yankee, J Balvin", image: "https://example.com/bailaremix.jpg" },
+            { id: 30, features: [96, 84, 87], name: "Que Pretendes - J Balvin, Bad Bunny", image: "https://example.com/quepretendes.jpg" },
+            { id: 31, features: [94, 82, 85], name: "Estamos Bien - Bad Bunny", image: "https://example.com/estamosbien.jpg" },
+            { id: 32, features: [97, 85, 88], name: "Krippy Kush - Farruko, Bad Bunny, Rvssian", image: "https://example.com/krippykush.jpg" },
+            { id: 33, features: [99, 88, 91], name: "X - Nicky Jam, J Balvin", image: "https://example.com/x.jpg" },
+            { id: 34, features: [100, 90, 92], name: "No Me Conoce - Jhay Cortez, J Balvin, Bad Bunny", image: "https://example.com/nomeconoce.jpg" },
+            { id: 35, features: [98, 86, 89], name: "Te Soñé De Nuevo - Ozuna", image: "https://example.com/tesone.jpg" },
+            { id: 36, features: [96, 84, 87], name: "Dákiti - Bad Bunny, Jhay Cortez", image: "https://example.com/dakiti.jpg" },
+            { id: 37, features: [94, 82, 85], name: "La Difícil - Bad Bunny", image: "https://example.com/ladificil.jpg" },
+            { id: 38, features: [97, 85, 88], name: "RITMO - The Black Eyed Peas, J Balvin", image: "https://example.com/ritmo.jpg" },
+            { id: 39, features: [99, 88, 91], name: "Otro Trago - Sech, Darell", image: "https://example.com/otrotrago.jpg" },
+            { id: 40, features: [95, 84, 87], name: "Definitivamente - Daddy Yankee, Sech", image: "https://example.com/definitivamente.jpg" },
+            { id: 41, features: [97, 85, 88], name: "Si Veo a Tu Mamá - Bad Bunny", image: "https://example.com/siveo.jpg" },
+            { id: 42, features: [100, 88, 91], name: "La Canción - J Balvin, Bad Bunny", image: "https://example.com/lacancion.jpg" },
+            { id: 43, features: [98, 86, 89], name: "Que Calor - Major Lazer, J Balvin, El Alfa", image: "https://example.com/quecalor.jpg" },
+            { id: 44, features: [96, 84, 87], name: "Dura Remix - Daddy Yankee, Bad Bunny, Natti Natasha, Becky G", image: "https://example.com/duraremix.jpg" },
+            { id: 45, features: [94, 82, 85], name: "Me Acostumbré - Arcangel, Bad Bunny", image: "https://example.com/meacostumbre.jpg" },
+            { id: 46, features: [97, 85, 88], name: "PAM - Justin Quiles, Daddy Yankee, El Alfa", image: "https://example.com/pam.jpg" },
+            { id: 47, features: [99, 88, 91], name: "Que Tire Pa Lante - Daddy Yankee", image: "https://example.com/quetirepalante.jpg" },
+            { id: 48, features: [100, 90, 93], name: "Taki Taki - DJ Snake, Selena Gomez, Ozuna, Cardi B", image: "https://example.com/takitaki.jpg" },
+            { id: 49, features: [98, 86, 89], name: "Madura - Cosculluela, Bad Bunny", image: "https://example.com/madura.jpg" },
+            { id: 50, features: [96, 84, 87], name: "Te Vi - Piso 21, Micro TDH", image: "https://example.com/tevi.jpg" }
+        ];
+
+        let selectedSong = null;
+
+        document.getElementById('search-input').addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            const suggestions = document.querySelector('.suggestions');
+            suggestions.innerHTML = '';
+            if (query.length > 0) {
+                const filteredSongs = songs.filter(song => song.name.toLowerCase().includes(query));
+                filteredSongs.forEach(song => {
+                    const li = document.createElement('li');
+                    li.textContent = song.name;
+                    li.addEventListener('click', () => {
+                        document.getElementById('search-input').value = song.name;
+                        suggestions.innerHTML = '';
+                        selectedSong = song;
+                    });
+                    suggestions.appendChild(li);
+                });
+            }
+        });
+
+        function findSimilarSongs() {
+            const resultsContainer = document.querySelector('.result-list');
+            resultsContainer.innerHTML = '';
+            if (!selectedSong) return;
+
+            const targetFeatures = selectedSong.features;
+
+            let distances = songs.map(song => ({
+                song: song,
+                distance: euclideanDistance(targetFeatures, song.features)
+            }));
+
+            distances.sort((a, b) => a.distance - b.distance);
+
+            distances.slice(1, 6).forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'result-item';
+                li.innerHTML = `
+                    <img src="${item.song.image}" alt="${item.song.name}">
+                    <span>${item.song.name}</span>
+                `;
+                resultsContainer.appendChild(li);
+            });
+        }
+
+        function euclideanDistance(a, b) {
+            return Math.sqrt(a.map((val, i) => Math.pow(val - b[i], 2)).reduce((sum, val) => sum + val, 0));
+        }
+    </script>
+</body>
+
+</html>

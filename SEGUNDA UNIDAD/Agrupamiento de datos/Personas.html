@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Agrupación de Datos</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <h1 class="text-3xl font-bold mb-4">Agrupación de Datos</h1>
+
+    <div class="w-full max-w-md mx-auto bg-white rounded shadow-md p-8">
+        <table id="employeeTable" class="w-full text-left">
+            <thead>
+                <tr class="bg-gray-200">
+                    <th class="px-4 py-2">Nombre</th>
+                    <th class="px-4 py-2">Departamento</th>
+                    <th class="px-4 py-2">Salario</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+
+        <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" onclick="groupEmployeesByDepartment()">Agrupar por Departamento</button>
+
+        <div id="chart"></div>
+    </div>
+
+    <script>
+        // Datos de empleados
+        const employees = [
+            { name: "John", department: 1, salary: 50000 },
+            { name: "Jane", department: 1, salary: 60000 },
+            { name: "Bob", department: 2, salary: 70000 },
+            { name: "Alice", department: 2, salary: 55000 },
+            { name: "Mike", department: 3, salary: 65000 },
+            { name: "Emma", department: 3, salary: 75000 },
+            { name: "Tom", department: 1, salary: 50000 },
+            { name: "Lily", department: 2, salary: 60000 },
+            { name: "Sam", department: 3, salary: 70000 },
+            { name: "Rachel", department: 1, salary: 55000 }
+        ];
+
+        // Función para agrupar empleados por departamento
+        function groupEmployeesByDepartment() {
+            // Crear un mapa para almacenar los empleados por departamento
+            const departmentMap = new Map();
+
+            // Agrupar empleados por departamento
+            employees.forEach(employee => {
+                if (!departmentMap.has(employee.department)) {
+                    departmentMap.set(employee.department, []);
+                }
+                departmentMap.get(employee.department).push(employee);
+            });
+
+            // Mostrar los empleados agrupados por departamento
+            const tableBody = document.getElementById("employeeTable").getElementsByTagName("tbody")[0];
+            tableBody.innerHTML = "";
+
+            departmentMap.forEach((employees, department) => {
+                const departmentRow = document.createElement("tr");
+                const departmentCell = document.createElement("td");
+                departmentCell.colSpan = 3;
+                departmentCell.textContent = `Departamento ${department}`;
+                departmentRow.appendChild(departmentCell);
+                tableBody.appendChild(departmentRow);
+
+                employees.forEach(employee => {
+                    const row = document.createElement("tr");
+                    const nameCell = document.createElement("td");
+                    const departmentCell = document.createElement("td");
+                    const salaryCell = document.createElement("td");
+
+                    nameCell.textContent = employee.name;
+                    departmentCell.textContent = employee.department;
+                    salaryCell.textContent = employee.salary.toLocaleString("es-ES", { style: "currency", currency: "EUR" });
+
+                    row.appendChild(nameCell);
+                    row.appendChild(departmentCell);
+                    row.appendChild(salaryCell);
+                    tableBody.appendChild(row);
+                });
+            });
+
+            // Mostrar la agrupación en modo gráfico
+            const chart = d3.select("#chart")
+                .append("svg")
+                .attr("width", 500)
+                .attr("height", 300);
+
+            const xScale = d3.scaleBand()
+                .domain(departmentMap.keys())
+                .range([0, 500])
+                .padding(0.2);
+
+            const yScale = d3.scaleLinear()
+                .domain([0, d3.max(employees, d => d.salary)])
+                .range([300, 0]);
+
+            chart.append("g")
+                .attr("transform", `translate(0, 300)`)
+                .call(d3.axisBottom(xScale));
+
+            chart.append("g")
+                .attr("transform", `translate(0, 0)`)
+                .call(d3.axisLeft(yScale));
+
+            chart.selectAll("circle")
+                .data(employees)
+                .enter()
+                .append("circle")
+                .attr("cx", d => xScale(d.department))
+                .attr("cy", d => yScale(d.salary))
+                .attr("r", 5)
+                .attr("fill", d => d.department === 1 ? "red" : d.department === 2 ? "blue" : "green");
+        }
+    </script>
+</body>
+</html>

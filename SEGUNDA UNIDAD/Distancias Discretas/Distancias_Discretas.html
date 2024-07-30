@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Corrección de errores tipográficos</title>
+</head>
+<body>
+  <h1>Corrección de errores tipográficos</h1>
+  <input type="text" id="nameInput" placeholder="Ingresa un nombre">
+  <button onclick="suggestNames()">Buscar nombres similares</button>
+  <div id="suggestions"></div>
+
+  <script>
+    class SuffixTreeNode {
+      constructor() {
+        this.children = new Map();
+        this.suffixIndex = -1;
+      }
+    }
+
+    class SuffixTree {
+      constructor() {
+        this.root = new SuffixTreeNode();
+      }
+
+      buildTree(text) {
+        for (let i = 0; i < text.length; i++) {
+          this.insertSuffix(text, i);
+        }
+      }
+
+      insertSuffix(text, index) {
+        let currentNode = this.root;
+        for (let i = index; i < text.length; i++) {
+          const char = text[i];
+          let childNode = currentNode.children.get(char);
+          if (!childNode) {
+            childNode = new SuffixTreeNode();
+            currentNode.children.set(char, childNode);
+          }
+          currentNode = childNode;
+        }
+        currentNode.suffixIndex = index;
+      }
+
+      findSimilarNames(name) {
+        let currentNode = this.root;
+        let i = 0;
+        while (i < name.length) {
+          const char = name[i];
+          const childNode = currentNode.children.get(char);
+          if (!childNode) {
+            return this.collectSuffixes(currentNode);
+          }
+          currentNode = childNode;
+          i++;
+        }
+        return this.collectSuffixes(currentNode);
+      }
+
+      collectSuffixes(node) {
+        const suffixes = [];
+        this.collectSuffixesRecursive(node, suffixes);
+        return suffixes;
+      }
+
+      collectSuffixesRecursive(node, suffixes) {
+        if (node.suffixIndex !== -1) {
+          suffixes.push(node.suffixIndex);
+        }
+        for (const [, child] of node.children) {
+          this.collectSuffixesRecursive(child, suffixes);
+        }
+      }
+    }
+
+    // Ejemplo de uso
+    const userNames = ['Efrain', 'Saul', 'Diana', 'Rocio', 'Leidy', 'Sara'];
+    const concatenatedNames = userNames.join('$') + '$';
+
+    const suffixTree = new SuffixTree();
+    suffixTree.buildTree(concatenatedNames);
+
+    function suggestNames(name) {
+      const suffixIndices = suffixTree.findSimilarNames(name);
+      const suggestions = suffixIndices.map(index => {
+        let suggestion = '';
+        let i = index;
+        while (concatenatedNames[i] !== '$') {
+          suggestion += concatenatedNames[i];
+          i++;
+        }
+        return suggestion;
+      });
+      return suggestions;
+    }
+
+    function displaySuggestions() {
+      const nameInput = document.getElementById('nameInput');
+      const name = nameInput.value;
+      const suggestions = suggestNames(name);
+
+      const suggestionsDiv = document.getElementById('suggestions');
+      suggestionsDiv.innerHTML = '';
+
+      suggestions.forEach(suggestion => {
+        const suggestionElement = document.createElement('div');
+        suggestionElement.textContent = suggestion;
+        suggestionsDiv.appendChild(suggestionElement);
+      });
+    }
+
+    function suggestNames() {
+      displaySuggestions();
+    }
+  </script>
+</body>
+</html>

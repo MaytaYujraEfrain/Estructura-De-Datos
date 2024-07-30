@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detección de Plagios</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        textarea, input[type="file"], input[type="url"], button {
+            width: 100%;
+            margin-bottom: 20px;
+            padding: 10px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #results {
+            margin-top: 20px;
+        }
+        .result-item {
+            margin-bottom: 15px;
+        }
+        .result-item p {
+            margin: 0;
+        }
+        .result-item ul {
+            margin: 5px 0 0 20px;
+        }
+        .predefined-documents {
+            margin-bottom: 10px;
+        }
+        .predefined-documents p {
+            margin: 5px 0;
+        }
+        .predefined-documents ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .predefined-documents li {
+            margin-bottom: 5px;
+        }
+        #progress {
+            display: none;
+            margin-bottom: 20px;
+            font-size: 16px;
+            color: #007BFF;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Detección de Plagios</h1>
+        <div class="predefined-documents">
+            <p>Documentos Predefinidos:</p>
+            <ul id="predefinedList"></ul>
+        </div>
+        <textarea id="document" placeholder="Inserte el texto aquí..." oninput="detectPlagiarism()"></textarea>
+        <input type="file" id="pdfFile" accept="application/pdf">
+        <input type="url" id="webUrl" placeholder="Inserte la URL del sitio web...">
+        <button onclick="addPredefined()">Agregar Documento</button>
+        <button onclick="detectPlagiarism()">Detectar Plagio</button>
+        <div>
+            <label for="sensitivity">Sensibilidad (Distancia máxima): </label>
+            <input type="number" id="sensitivity" value="3" min="1" max="10">
+        </div>
+        <div id="progress">Procesando...</div>
+        <div id="results"></div>
+    </div>
+    <script>
+        const predefinedDocuments = [];
+
+        function renderPredefinedDocuments() {
+            const predefinedList = document.getElementById("predefinedList");
+            predefinedList.innerHTML = "";
+            for (const doc of predefinedDocuments) {
+                const li = document.createElement("li");
+                li.textContent = doc;
+                predefinedList.appendChild(li);
+            }
+        }
+
+        async function detectPlagiarism() {
+            const doc = document.getElementById("document").value;
+            const sensitivity = parseInt(document.getElementById("sensitivity").value);
+            const resultsDiv = document.getElementById("results");
+            resultsDiv.innerHTML = "";
+            if (!doc.trim()) {
+                resultsDiv.innerHTML = "<p>Ingrese un texto para detectar plagio.</p>";
+                return;
+            }
+            try {
+                const phrases = doc.match(/[^.!?]+[.!?]+/g);
+                if (!phrases) {
+                    resultsDiv.innerHTML = "<p>No se encontraron frases en el documento.</p>";
+                    return;
+                }
+                for (const phrase of phrases) {
+                    const searchResults = await searchPlagiarism(phrase.trim(), sensitivity);
+                    if (searchResults.length > 0) {
+                        resultsDiv.innerHTML += `
+                            <div class="result-item">
+                                <p>Frase similar encontrada: <strong>"${phrase.trim()}"</strong></p>
+                                <ul>${searchResults.map(r => `<li>${r}</li>`).join('')}</ul>
+                            </div>
+                        `;
+                    }
+                }
+            } catch (error) {
+                console.error('Error al detectar plagio:', error);
+                resultsDiv.innerHTML = "<p>Hubo un error al procesar la solicitud.</p>";
+            }
+        }
+
+        async function searchPlagiarism(text, sensitivity) {
+            return new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    // Simulación de búsqueda de plagio (reemplazar con la lógica real)
+                    const results = predefinedDocuments.filter(doc => doc.toLowerCase().includes(text.toLowerCase()));
+                    resolve(results);
+                }, 1000); // Simulación de tiempo de respuesta de 1 segundo
+            });
+        }
+
+        async function addPredefined() {
+            const pdfFile = document.getElementById("pdfFile").files[0];
+            const webUrl = document.getElementById("webUrl").value.trim();
+            let text = "";
+            if (pdfFile) {
+                try {
+                    text = await extractTextFromPDF(pdfFile);
+                } catch (error) {
+                    console.error('Error al extraer texto desde el archivo PDF:', error);
+                    alert('Error al extraer texto desde el archivo PDF.');
+                    return;
+                }
+            } else if (webUrl) {
+                try {
+                    text = await extractTextFromWeb(webUrl);
+                } catch (error) {
+                    console.error('Error al extraer texto desde la URL:', error);
+                    alert('Error al extraer texto desde la URL.');
+                    return;
+                }
+            } else {
+                alert('Debe seleccionar un archivo PDF o ingresar una URL.');
+                return;
+            }
+
+            if (text) {
+                document.getElementById("document").value += text + " ";
+                predefinedDocuments.push(text); // Agregar documento a la lista predefinida
+                renderPredefinedDocuments(); // Actualizar la lista visualmente
+            }
+        }
+
+        async function extractTextFromPDF(file) {
+            const reader = new FileReader();
+            reader.readAsArrayBuffer(file);
+            return new Promise((resolve, reject) => {
+                reader.onload = async () => {
+                    try {
+                        const pdfDoc = await PDFLib.PDFDocument.load(reader.result);
+                        let text = '';
+                        const numPages = pdfDoc.getPageCount();
+                        for (let i = 0; i < numPages; i++) {
+                            const page = pdfDoc.getPage(i);
+                            const content = await page.getTextContent();
+                            text += content.items.map(item => item.str).join(' ') + ' ';
+                        }
+                        resolve(text);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.onerror = (error) => reject(error);
+            });
+        }
+
+        async function extractTextFromWeb(url) {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            const text = await response.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(text, 'text/html');
+            return doc.body.innerText;
+        }
+    </script>
+</body>
+</html>

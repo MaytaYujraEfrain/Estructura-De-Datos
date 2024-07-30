@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Library Management System</title>
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      padding: 20px;
+    }
+    .book-list {
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 class="text-center">Library Management System</h1>
+    <div class="row">
+      <div class="col-md-6">
+        <h2>Insert a New Book</h2>
+        <form id="searchForm">
+            <div class="form-group">
+              <label for="searchId">Book ID</label>
+              <input type="number" class="form-control" id="searchId" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Search Book</button>
+          </form>
+          <div id="searchResult" class="mt-3"></div>          
+      </div>
+      <div class="col-md-6">
+        <h2>Search for a Book</h2>
+        <form id="searchForm">
+          <div class="form-group">
+            <label for="searchId">Book ID</label>
+            <input type="number" class="form-control" id="searchId" required>
+          </div>
+          <button type="submit" class="btn btn-primary">Search Book</button>
+        </form>
+        <div id="searchResult" class="mt-3"></div>
+      </div>
+    </div>
+    <div class="row book-list">
+      <div class="col-md-12">
+        <h2>All Books</h2>
+        <ul id="bookList" class="list-group"></ul>
+      </div>
+    </div>
+  </div>
+  <script>
+    // Paso 1: Definir la estructura del nodo del árbol
+class Node {
+    constructor(id, title, author) {
+      this.id = id;
+      this.title = title;
+      this.author = author;
+      this.left = null;
+      this.right = null;
+    }
+  }
+  
+  // Paso 2: Implementar el Binary Search Tree
+  class BinarySearchTree {
+    constructor() {
+      this.root = null;
+    }
+  
+    // Método para insertar un nuevo libro
+    insert(id, title, author) {
+      const newNode = new Node(id, title, author);
+      if (this.root === null) {
+        this.root = newNode;
+      } else {
+        this._insertNode(this.root, newNode);
+      }
+    }
+  
+    _insertNode(node, newNode) {
+      if (newNode.id < node.id) {
+        if (node.left === null) {
+          node.left = newNode;
+        } else {
+          this._insertNode(node.left, newNode);
+        }
+      } else {
+        if (node.right === null) {
+          node.right = newNode;
+        } else {
+          this._insertNode(node.right, newNode);
+        }
+      }
+    }
+  
+    // Método para buscar un libro por ID
+    search(id) {
+      return this._searchNode(this.root, id);
+    }
+  
+    _searchNode(node, id) {
+      if (node === null) {
+        return null;
+      }
+      if (id < node.id) {
+        return this._searchNode(node.left, id);
+      } else if (id > node.id) {
+        return this._searchNode(node.right, id);
+      } else {
+        return node;
+      }
+    }
+  
+    // Método para eliminar un libro por ID
+    remove(id) {
+      this.root = this._removeNode(this.root, id);
+    }
+  
+    _removeNode(node, id) {
+      if (node === null) {
+        return null;
+      }
+      if (id < node.id) {
+        node.left = this._removeNode(node.left, id);
+        return node;
+      } else if (id > node.id) {
+        node.right = this._removeNode(node.right, id);
+        return node;
+      } else {
+        // Nodo encontrado
+        if (node.left === null && node.right === null) {
+          node = null;
+          return node;
+        }
+        if (node.left === null) {
+          node = node.right;
+          return node;
+        } else if (node.right === null) {
+          node = node.left;
+          return node;
+        }
+        const aux = this._findMinNode(node.right);
+        node.id = aux.id;
+        node.title = aux.title;
+        node.author = aux.author;
+        node.right = this._removeNode(node.right, aux.id);
+        return node;
+      }
+    }
+  
+    _findMinNode(node) {
+      if (node.left === null) {
+        return node;
+      } else {
+        return this._findMinNode(node.left);
+      }
+    }
+  
+    // Método para realizar recorrido inorden (para ver todos los libros ordenados por ID)
+    inorderTraversal() {
+      const books = [];
+      this._inorderTraversalNode(this.root, books);
+      return books;
+    }
+  
+    _inorderTraversalNode(node, books) {
+      if (node !== null) {
+        this._inorderTraversalNode(node.left, books);
+        books.push({ id: node.id, title: node.title, author: node.author });
+        this._inorderTraversalNode(node.right, books);
+      }
+    }
+  }
+  
+  // Crear instancia del BST
+  const bst = new BinarySearchTree();
+  
+  // Manejar la inserción de un nuevo libro
+  document.getElementById('bookForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const id = parseInt(document.getElementById('bookId').value);
+    const title = document.getElementById('bookTitle').value;
+    const author = document.getElementById('bookAuthor').value;
+    bst.insert(id, title, author);
+    displayBooks();
+    this.reset();
+  });
+  
+  // Manejar la búsqueda de un libro
+  document.getElementById('searchForm').addEventListener('submit', function (e) {
+  e.preventDefault();
+  const id = parseInt(document.getElementById('searchId').value);
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', `searchBook.php?id=${id}`, true);
+  xhr.onload = function () {
+    const resultDiv = document.getElementById('searchResult');
+    if (xhr.status === 200) {
+      const response = JSON.parse(xhr.responseText);
+      if (response.success) {
+        resultDiv.innerHTML = `<p class="alert alert-success">Libro encontrado: ID: ${response.book.id}, Título: ${response.book.title}, Autor: ${response.book.author}</p>`;
+      } else {
+        resultDiv.innerHTML = `<p class="alert alert-danger">Libro no encontrado</p>`;
+      }
+    } else {
+      resultDiv.innerHTML = `<p class="alert alert-danger">Error al buscar el libro</p>`;
+    }
+  };
+  xhr.send();
+  this.reset();
+});
+
+  
+  // Mostrar todos los libros en la lista
+  function displayBooks() {
+    const bookList = document.getElementById('bookList');
+    bookList.innerHTML = '';
+    const books = bst.inorderTraversal();
+    books.forEach(book => {
+      const li = document.createElement('li');
+      li.className = 'list-group-item';
+      li.textContent = `ID: ${book.id}, Título: ${book.title}, Autor: ${book.author}`;
+      bookList.appendChild(li);
+    });
+  }
+  
+  </script>
+</body>
+</html>

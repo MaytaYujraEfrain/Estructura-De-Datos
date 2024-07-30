@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Geolocalización para Restaurantes</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-image: url('https://img.freepik.com/foto-gratis/comida-ingredientes_1220-4884.jpg');
+            background-color: #f4f4f4;
+            color: #333333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .banner {
+            background-image: url('https://picchutravel.com/wp-content/uploads/los-mejores-restaurantes-en-cusco.jpg');
+            background-size: cover;
+            color: rgb(255, 255, 255);
+            text-align: center;
+            padding: 100px 0;
+            
+            font-size: 30px;
+            text-shadow: 4px 4px 4px #070705;
+        }
+
+        #container {
+            width: 95%;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 10px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+
+        #map {
+            height: 500px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            border: 2px solid #ddd;
+        }
+
+        .restaurant-item img {
+            max-width: 100%;
+            border-radius: 5px;
+        }
+
+        footer {
+            background-color: #333333;
+            color: #fff;
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        header {
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            padding: 20px 0;
+            text-shadow: 4px 4px 4px #070705;
+        }
+
+        .footer-text,
+        .header-text {
+            margin: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1 class="header-text">Sistema de Geolocalización para Restaurantes</h1>
+    </header>
+    <div class="banner">
+        <h1>Encuentra los mejores restaurantes cerca de ti</h1>
+    </div>
+    <div id="container">
+        <div id="map"></div>
+        <div id="inputSection" class="text-center">
+            <button class="btn btn-primary mb-2" onclick="locateUser()">Ubicación Actual</button>
+            <br>
+            <label for="latitude">Latitud:</label>
+            <input type="text" id="latitude" class="form-control d-inline-block w-auto mx-2" placeholder="-15.8402213">
+            <label for="longitude">Longitud:</label>
+            <input type="text" id="longitude" class="form-control d-inline-block w-auto mx-2" placeholder="-70.0218809">
+            <button class="btn btn-success ml-2" onclick="findNearbyRestaurants()">Mostrar Restaurantes
+                Cercanos</button>
+        </div>
+        <div id="results" class="mt-4">
+            <h2>Restaurantes Cercanos:</h2>
+            <div class="row" id="restaurantList"></div>
+        </div>
+    </div>
+    <footer>
+        <p class="footer-text">&copy; 2024 Sistema de Geolocalización para Restaurantes. Todos los derechos reservados.
+        </p>
+    </footer>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+    <script>
+        const map = L.map('map').setView([-15.8402213, -70.0218809], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        let userMarker;
+        let routingControl;
+
+        class Restaurant {
+            constructor(name, type, rating, latitude, longitude, image) {
+                this.name = name;
+                this.type = type;
+                this.rating = rating;
+                this.latitude = latitude;
+                this.longitude = longitude;
+                this.image = image; // Añade el atributo image
+            }
+
+            distanceTo(userLat, userLng) {
+                const restaurantLat = this.latitude;
+                const restaurantLng = this.longitude;
+                const R = 6371; // Radio de la Tierra en km
+                const dLat = this.deg2rad(restaurantLat - userLat);
+                const dLng = this.deg2rad(restaurantLng - userLng);
+                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(this.deg2rad(userLat)) * Math.cos(this.deg2rad(restaurantLat)) *
+                    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                const distance = R * c; // Distancia en km
+                return distance;
+            }
+
+            deg2rad(deg) {
+                return deg * (Math.PI / 180);
+            }
+        }
+
+        class Grid {
+            constructor(size) {
+                this.size = size;
+                this.cells = new Map();
+            }
+
+            getCellKey(latitude, longitude) {
+                const x = Math.floor(latitude / this.size);
+                const y = Math.floor(longitude / this.size);
+                return `${x},${y}`;
+            }
+
+            addRestaurant(restaurant) {
+                const key = this.getCellKey(restaurant.latitude, restaurant.longitude);
+                if (!this.cells.has(key)) {
+                    this.cells.set(key, []);
+                }
+                this.cells.get(key).push(restaurant);
+                const restaurantIcon = restaurantIcons[restaurant.type.toLowerCase()] || restaurantIcons.default;
+                L.marker([restaurant.latitude, restaurant.longitude], { icon: restaurantIcon }).addTo(map)
+                    .bindPopup(`<b>${restaurant.name}</b><br>${restaurant.type}<br>${restaurant.rating} estrellas`);
+            }
+
+            getNearbyRestaurants(latitude, longitude) {
+                const nearbyRestaurants = [];
+                const centerKey = this.getCellKey(latitude, longitude);
+                const centerX = parseInt(centerKey.split(',')[0]);
+                const centerY = parseInt(centerKey.split(',')[1]);
+
+                for (let dx = -1; dx <= 1; dx++) {
+                    for (let dy = -1; dy <= 1; dy++) {
+                        const key = `${centerX + dx},${centerY + dy}`;
+                        if (this.cells.has(key)) {
+                            nearbyRestaurants.push(...this.cells.get(key));
+                        }
+                    }
+                }
+
+                return nearbyRestaurants;
+            }
+        }
+
+        const restaurantIcons = {
+            italiana: L.icon({
+                iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448653.png',
+                iconSize: [30, 30],
+                iconAnchor: [15, 30],
+                popupAnchor: [0, -30]
+            }),
+            peruana: L.icon({
+                iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448653.png',
+                iconSize: [30, 30],
+                iconAnchor: [15, 30],
+                popupAnchor: [0, -30]
+            }),
+            japonesa: L.icon({
+                iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448653.png',
+                iconSize: [30, 30],
+                iconAnchor: [15, 30],
+                popupAnchor: [0, -30]
+            }),
+            mexicana: L.icon({
+                iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448653.png',
+                iconSize: [30, 30],
+                iconAnchor: [15, 30],
+                popupAnchor: [0, -30]
+            }),
+            // Agrega más tipos de restaurantes según necesites
+            default: L.icon({
+                iconUrl: 'https://cdn-icons-png.flaticon.com/512/3448/3448653.png',
+                iconSize: [30, 30],
+                iconAnchor: [15, 30],
+                popupAnchor: [0, -30]
+            })
+        };
+
+        const restaurants = [
+            new Restaurant("LA TOSCANA", "Peruana", 4.5, -15.835, -70.025, 'https://media.admagazine.com/photos/618a5d11532cae908aaf27ab/master/w_1600%2Cc_limit/96644.jpg'),
+            new Restaurant("Restaurante (Doña nadia)", "Peruana", 4.0, -15.827644621942817, -70.02126777139567, 'https://www.peru.travel/Contenido/General/Imagen/es/1049/1.1/restaurantes-de-lujo-desktop.jpg'),
+            new Restaurant("Restaurante la zampoña", "Peruana", 4.2, -15.83049475976341, -70.02053854657149, 'https://media-cdn.tripadvisor.com/media/photo-s/09/52/82/fe/hacienda-restaurant.jpg'),
+            new Restaurant("Puro sabor", "Peruana", 4.3, -15.832323781258381, -70.02190497131211, 'https://media-cdn.tripadvisor.com/media/photo-s/13/90/54/fc/un-ambiente-realmente.jpg'),
+            new Restaurant("La Bocca El Chipe", "Peruana", 4.1, -15.834611208904503, -70.0295525420522, 'https://titicacatravel-ip.com/wcar/imgs/incasparadise/restaurantes-en-lago-titicaca-puno.jpg'),
+            new Restaurant("La Bocca El Chipe", "Peruana", 4.4, -15.834572579350166, -70.02938039746276, 'https://dynamic-media-cdn.tripadvisor.com/media/photo-o/09/0c/e0/d1/oui-paraty-crepes-e-culinaria.jpg?w=600&h=-1&s=1'),
+            new Restaurant("La Estancia Grill", "Peruana", 4.6, -15.838168007909177, -70.02637234506298, 'https://dynamic-media-cdn.tripadvisor.com/media/photo-o/02/31/e3/1f/upstairs-restaurant.jpg?w=800&h=-1&s=1'),
+            new Restaurant("Chaquena Restaurante", "Peruana", 4.8, -15.845510877649728, -70.01936094564775, 'https://img.restaurantguru.com/re73-Planet-Sushi-Carras-interior.jpg'),
+        ];
+
+        const grid = new Grid(0.02);
+        restaurants.forEach(restaurant => grid.addRestaurant(restaurant));
+
+        function locateUser() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    const userLat = position.coords.latitude;
+                    const userLng = position.coords.longitude;
+                    if (!userMarker) {
+                        userMarker = L.marker([userLat, userLng]).addTo(map);
+                    } else {
+                        userMarker.setLatLng([userLat, userLng]);
+                    }
+                    map.setView([userLat, userLng], 13);
+                    document.getElementById("latitude").value = userLat.toFixed(6);
+                    document.getElementById("longitude").value = userLng.toFixed(6);
+                }, () => {
+                    alert('No se pudo obtener tu ubicación actual.');
+                });
+            } else {
+                alert('Tu navegador no soporta geolocalización.');
+            }
+        }
+
+        function findNearbyRestaurants() {
+            const userLat = parseFloat(document.getElementById("latitude").value);
+            const userLng = parseFloat(document.getElementById("longitude").value);
+
+            if (isNaN(userLat) || isNaN(userLng)) {
+                alert("Por favor, ingresa coordenadas válidas.");
+                return;
+            }
+
+            const nearbyRestaurants = grid.getNearbyRestaurants(userLat, userLng);
+
+            // Ordenar los restaurantes por distancia
+            nearbyRestaurants.sort((a, b) => {
+                const distanceA = a.distanceTo(userLat, userLng);
+                const distanceB = b.distanceTo(userLat, userLng);
+                return distanceA - distanceB;
+            });
+
+            const restaurantList = document.getElementById("restaurantList");
+            restaurantList.innerHTML = '';
+
+            if (nearbyRestaurants.length === 0) {
+                restaurantList.innerHTML = '<div class="col text-center">No se encontraron restaurantes cercanos.</div>';
+            } else {
+                nearbyRestaurants.forEach(restaurant => {
+                    const distance = restaurant.distanceTo(userLat, userLng).toFixed(2);
+                    const restaurantItem = document.createElement("div");
+                    restaurantItem.className = 'col-md-4 mb-4 restaurant-item';
+                    restaurantItem.innerHTML = `
+                        <div class="card">
+                            <img src="${restaurant.image}" class="card-img-top" alt="...">
+                            <div class="card-body">
+                                <h5 class="card-title">${restaurant.name}</h5>
+                                <p class="card-text">${restaurant.type} - ${restaurant.rating} estrellas</p>
+                                <p class="card-text">Distancia: ${distance} km</p>
+                                <button class="btn btn-info btn-sm" onclick="drawRoute(${userLat}, ${userLng}, ${restaurant.latitude}, ${restaurant.longitude})">Trazar Ruta</button>
+                            </div>
+                        </div>
+                    `;
+                    restaurantList.appendChild(restaurantItem);
+                });
+            }
+        }
+
+        function drawRoute(userLat, userLng, destLat, destLng) {
+            if (routingControl) {
+                map.removeControl(routingControl);
+            }
+            routingControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(userLat, userLng),
+                    L.latLng(destLat, destLng)
+                ],
+                createMarker: function () { return null; },
+                lineOptions: {
+                    styles: [{ color: '#007bff', opacity: 0.8, weight: 5 }]
+                }
+            }).addTo(map);
+        }
+    </script>
+</body>
+
+</html>

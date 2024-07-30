@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Distancia entre píxeles</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center">Distancia entre píxeles</h1>
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <form>
+                    <div class="form-group">
+                        <label for="image">Imagen:</label>
+                        <input type="file" id="image" name="image" class="form-control" onchange="loadImage()"><br><br>
+                    </div>
+                    <canvas id="canvas" width="400" height="400"></canvas>
+                    <button type="button" onclick="calculatePixelDistance()" class="btn btn-primary">Calcular distancia</button>
+                    <p id="result" class="text-center"></p>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let canvas, ctx, image;
+        let point1 = null, point2 = null;
+
+        document.addEventListener("DOMContentLoaded", function() {
+            canvas = document.getElementById("canvas");
+            ctx = canvas.getContext("2d");
+            canvas.addEventListener("click", handleClick);
+        });
+
+        function loadImage() {
+            const imageInput = document.getElementById("image");
+            image = new Image();
+            image.src = URL.createObjectURL(imageInput.files[0]);
+            image.onload = function() {
+                canvas.width = image.width;
+                canvas.height = image.height;
+                ctx.drawImage(image, 0, 0);
+            };
+        }
+
+        function handleClick(event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            if (point1 === null) {
+                point1 = { x, y };
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                ctx.fillStyle = "red";
+                ctx.fill();
+            } else {
+                point2 = { x, y };
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, 2 * Math.PI);
+                ctx.fillStyle = "red";
+                ctx.fill();
+            }
+        }
+
+        function calculatePixelDistance() {
+            if (point1 !== null && point2 !== null) {
+                let distance = Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2));
+                document.getElementById("result").innerHTML = `La distancia entre los píxeles es ${distance}`;
+            } else {
+                alert("Por favor, selecciona dos puntos en la imagen.");
+            }
+        }
+    </script>
+</body>
+</html>

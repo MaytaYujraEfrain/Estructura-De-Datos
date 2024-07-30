@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Recomendación de Música</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        .song-list,
+        .result-list {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .song-item,
+        .result-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .song-item img,
+        .result-item img {
+            width: 50px;
+            height: 50px;
+            margin-right: 10px;
+            border-radius: 4px;
+        }
+
+        .search-bar {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .search-bar input {
+            width: 60%;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            margin-right: 10px;
+        }
+
+        .search-bar button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+
+        .search-bar button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Sistema de Recomendación de Música</h1>
+        <div class="search-bar">
+            <input type="text" id="songName" placeholder="Ingresa el nombre de la canción">
+            <button onclick="searchSimilarSongs()">Buscar</button>
+        </div>
+        <h2>Lista de Canciones</h2>
+        <ul class="song-list"></ul>
+        <h2>Resultados de la Búsqueda</h2>
+        <ul class="result-list"></ul>
+    </div>
+
+    <script>
+        // Lista de canciones con características
+        const songs = [
+            { id: 1, features: [90, 80, 70], name: "Tusa - Karol G, Nicki Minaj", image: "https://example.com/tusa.jpg" },
+            { id: 2, features: [85, 75, 65], name: "China - Anuel AA, Daddy Yankee, Karol G, Ozuna, J Balvin", image: "https://example.com/china.jpg" },
+            { id: 3, features: [95, 85, 75], name: "Con Calma - Daddy Yankee, Snow", image: "https://example.com/concalma.jpg" },
+            { id: 4, features: [80, 70, 60], name: "Adicto - Tainy, Anuel AA, Ozuna", image: "https://example.com/adicto.jpg" },
+            { id: 5, features: [92, 82, 72], name: "Baila Baila Baila - Ozuna", image: "https://example.com/bailabaila.jpg" },
+            { id: 6, features: [88, 78, 68], name: "La Canción - J Balvin, Bad Bunny", image: "https://example.com/lacancion.jpg" },
+            { id: 7, features: [91, 81, 71], name: "Yo Le Llego - J Balvin, Bad Bunny", image: "https://example.com/yolellego.jpg" },
+            { id: 8, features: [86, 76, 66], name: "Reggaeton en Paris - Daddy Yankee, Karol G, De La Ghetto", image: "https://example.com/reggaeton.jpg" },
+            { id: 9, features: [89, 79, 69], name: "Ella Quiere Beber - Anuel AA, Romeo Santos", image: "https://example.com/ellaquierebeber.jpg" },
+            { id: 10, features: [87, 77, 67], name: "Secreto - Anuel AA, Karol G", image: "https://example.com/secreto.jpg" },
+            { id: 11, features: [90, 85, 80], name: "Te Robaré - Nicky Jam, Ozuna", image: "https://example.com/terobare.jpg" },
+            { id: 12, features: [88, 84, 79], name: "Otro Trago - Sech, Darell", image: "https://example.com/otrotrago.jpg" },
+            { id: 13, features: [89, 83, 78], name: "Te Soñé de Nuevo - Ozuna", image: "https://example.com/tesone.jpg" },
+            { id: 14, features: [87, 82, 77], name: "Si Te Vas - Sech, Ozuna", image: "https://example.com/sitevas.jpg" },
+            { id: 15, features: [86, 81, 76], name: "No Me Conoce - Jhay Cortez, J Balvin, Bad Bunny", image: "https://example.com/nommeconoce.jpg" },
+            { id: 16, features: [88, 84, 78], name: "La Rompe Corazones - Daddy Yankee, Ozuna", image: "https://example.com/rompecorazones.jpg" },
+            { id: 17, features: [85, 80, 75], name: "Soltera - Lunay, Daddy Yankee, Bad Bunny", image: "https://example.com/soltera.jpg" },
+            { id: 18, features: [92, 87, 82], name: "La Santa - Bad Bunny, Daddy Yankee", image: "https://example.com/lasanta.jpg" },
+            { id: 19, features: [90, 85, 80], name: "Baila Baila Baila (Remix) - Ozuna, Daddy Yankee, J Balvin, Farruko, Anuel AA", image: "https://example.com/bailaremix.jpg" },
+            { id: 20, features: [87, 82, 77], name: "Ignorantes - Bad Bunny, Sech", image: "https://example.com/ignorantes.jpg" },
+            { id: 21, features: [86, 81, 76], name: "Que Pretendes - J Balvin, Bad Bunny", image: "https://example.com/quepretendes.jpg" },
+            { id: 22, features: [90, 85, 80], name: "Por Perro - Sebastián Yatra, Luis Figueroa, Lary Over", image: "https://example.com/porperro.jpg" },
+            { id: 23, features: [85, 80, 75], name: "Pa' Moverse - Nicky Jam, Daddy Yankee", image: "https://example.com/pamoverse.jpg" },
+            { id: 24, features: [88, 83, 78], name: "Otra Noche en Miami - Bad Bunny", image: "https://example.com/otranoche.jpg" },
+            { id: 25, features: [87, 82, 77], name: "Dákiti - Bad Bunny, Jhay Cortez", image: "https://example.com/dakiti.jpg" },
+            { id: 26, features: [86, 81, 76], name: "Baila Conmigo - Dayvi, Victor Cardenas, Kelly Ruiz", image: "https://example.com/bailaconmigo.jpg" },
+            { id: 27, features: [90, 85, 80], name: "Bichiyal - Bad Bunny, Yaviah", image: "https://example.com/bichiyal.jpg" },
+            { id: 28, features: [95, 90, 85], name: "Safaera - Bad Bunny, Jowell & Randy, Ñengo Flow", image: "https://example.com/safaera.jpg" },
+            { id: 29, features: [85, 80, 75], name: "Yo Perreo Sola - Bad Bunny", image: "https://example.com/yoperreo.jpg" },
+            { id: 30, features: [88, 83, 78], name: "Te Boté - Nio García, Casper Mágico, Bad Bunny", image: "https://example.com/tebote.jpg" }
+        ];
+
+        // Mostrar la lista de canciones en la página
+        function displaySongs() {
+            const songList = document.querySelector('.song-list');
+            songList.innerHTML = '';
+            songs.forEach(song => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <img src="${song.image}" alt="${song.name}">
+                    <div>${song.name}</div>
+                `;
+                li.classList.add('song-item');
+                songList.appendChild(li);
+            });
+        }
+
+        // Función para calcular la distancia euclidiana
+        function euclideanDistance(a, b) {
+            return Math.sqrt(a.reduce((sum, val, i) => sum + (val - b[i]) ** 2, 0));
+        }
+
+        // Clase VPTree para manejar las búsquedas de canciones similares
+        class VPTree {
+            constructor(items, distance) {
+                this.items = items;
+                this.distance = distance;
+                this.tree = this.buildTree(items);
+            }
+
+            buildTree(items) {
+                if (items.length === 0) return null;
+                const node = { item: items[0] };
+                if (items.length === 1) return node;
+                const distances = items.slice(1).map(item => this.distance(node.item.features, item.features));
+                const median = this.getMedian(distances);
+                node.threshold = median;
+                const [left, right] = this.partition(items.slice(1), distances, median);
+                node.left = this.buildTree(left);
+                node.right = this.buildTree(right);
+                return node;
+            }
+
+            getMedian(arr) {
+                const sorted = [...arr].sort((a, b) => a - b);
+                const mid = Math.floor(sorted.length / 2);
+                return sorted[mid];
+            }
+
+            partition(items, distances, threshold) {
+                const left = [];
+                const right = [];
+                items.forEach((item, i) => {
+                    if (distances[i] < threshold) left.push(item);
+                    else right.push(item);
+                });
+                return [left, right];
+            }
+
+            search(query, k, distance) {
+                const results = [];
+                this.searchNode(this.tree, query, k, distance, results);
+                results.sort((a, b) => a.distance - b.distance);
+                return results.slice(0, k);
+            }
+
+            searchNode(node, query, k, distance, results) {
+                if (!node) return;
+                const dist = distance(query.features, node.item.features);
+                if (results.length < k || dist < results[results.length - 1].distance) {
+                    results.push({ song: node.item, distance: dist });
+                    results.sort((a, b) => a.distance - b.distance);
+                    if (results.length > k) results.pop();
+                }
+                if (node.left && dist < node.threshold) {
+                    this.searchNode(node.left, query, k, distance, results);
+                } else if (node.right) {
+                    this.searchNode(node.right, query, k, distance, results);
+                }
+                if (node.right && dist >= node.threshold) {
+                    this.searchNode(node.right, query, k, distance, results);
+                } else if (node.left) {
+                    this.searchNode(node.left, query, k, distance, results);
+                }
+            }
+        }
+
+        // Crear un árbol VP con las canciones
+        let tree = new VPTree(songs, euclideanDistance);
+
+        // Buscar canciones similares basadas en el nombre
+        function searchSimilarSongs() {
+            const songName = document.getElementById('songName').value.toLowerCase();
+            const userSong = songs.find(song => song.name.toLowerCase().includes(songName));
+            if (!userSong) {
+                alert('No se encontró la canción. Por favor, intenta con otro nombre.');
+                return;
+            }
+            const maxResults = 10;
+            let similarSongs = tree.search(userSong, maxResults, euclideanDistance);
+
+            // Mostrar resultados en la página
+            displayResults(similarSongs);
+        }
+
+        // Mostrar los resultados en la página
+        function displayResults(results) {
+            const resultList = document.querySelector('.result-list');
+            resultList.innerHTML = '';
+            results.forEach(result => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <img src="${result.song.image}" alt="${result.song.name}">
+                    <div>${result.song.name}</div>
+                `;
+                li.classList.add('result-item');
+                resultList.appendChild(li);
+            });
+        }
+
+        // Mostrar la lista inicial de canciones
+        displaySongs();
+    </script>
+</body>
+
+</html>

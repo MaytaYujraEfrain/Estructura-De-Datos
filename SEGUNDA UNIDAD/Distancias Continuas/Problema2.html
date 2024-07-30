@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Búsqueda de Imágenes de Paisaje Similares</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .image-item {
+            cursor: pointer;
+            transition: transform 0.3s;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .image-item:hover {
+            transform: scale(1.1);
+        }
+
+        .selected {
+            border: 2px solid #007bff;
+        }
+
+        #query-image {
+            max-width: 100%;
+            height: auto;
+            max-height: 300px;
+        }
+
+        .suggestion img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .suggestion {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        .suggestion img {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            margin-right: 10px;
+        }
+
+        .results {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container my-5">
+        <h1 class="text-center mb-4">Búsqueda de Imágenes de Paisaje Similares</h1>
+        <div class="text-center mb-4">
+            <input type="text" id="search-input" class="form-control" placeholder="Buscar imágenes...">
+            <div id="suggestions-container" class="mt-2"></div>
+        </div>
+        <div class="row">
+            <div class="col-md-6">
+                <h2>Imagen de Consulta</h2>
+                <div class="text-center">
+                    <img id="query-image" src="">
+                </div>
+            </div>
+        </div>
+        <div class="text-center mt-4">
+            <button class="btn btn-primary" onclick="findSimilarImages()">Buscar Imágenes de Paisaje Similares</button>
+        </div>
+        <div class="results">
+            <h2>Resultados</h2>
+            <div class="row" id="result-images">
+                <!-- Imágenes similares se mostrarán aquí dinámicamente -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://sdk.clarifai.com/js/clarifai-latest.min.js"></script>
+    <script>
+        // Datos de las imágenes de paisaje (ejemplo)
+        const images = [
+            { id: 1, category: "atardecer", features: [120, 150, 200, 0.7, 0.8] },
+            { id: 2, category: "paisaje", features: [150, 180, 220, 0.6, 0.7] },
+            { id: 3, category: "paisaje", features: [100, 130, 180, 0.5, 0.9] },
+            { id: 4, category: "paisaje", features: [180, 210, 250, 0.8, 0.6] },
+            { id: 5, category: "calle", features: [130, 160, 190, 0.7, 0.8] },
+            { id: 6, category: "calle", features: [110, 140, 170, 0.6, 0.7] },
+            { id: 7, category: "atardecer", features: [140, 170, 210, 0.5, 0.9] },
+            { id: 8, category: "atardecer", features: [160, 190, 230, 0.8, 0.6] },
+            { id: 9, category: "paisaje", features: [150, 180, 200, 0.7, 0.8] },
+            { id: 10, category: "playa", features: [130, 160, 220, 0.6, 0.7] },
+            { id: 11, category: "calle", features: [120, 150, 200, 0.5, 0.9] },
+            { id: 12, category: "montaña", features: [140, 170, 210, 0.8, 0.6] },
+            { id: 13, category: "calle", features: [110, 140, 190, 0.7, 0.8] },
+            { id: 14, category: "playa", features: [100, 130, 170, 0.6, 0.7] },
+            { id: 15, category: "playa", features: [160, 190, 210, 0.5, 0.9] },
+            { id: 16, category: "montaña", features: [150, 180, 220, 0.8, 0.6] },
+            { id: 17, category: "calle", features: [140, 170, 200, 0.7, 0.8] },
+            { id: 18, category: "montaña", features: [130, 160, 230, 0.6, 0.7] },
+            { id: 19, category: "playa", features: [120, 150, 210, 0.5, 0.9] },
+            { id: 20, category: "calle", features: [160, 190, 200, 0.8, 0.6] },
+            { id: 21, category: "montaña", features: [110, 140, 170, 0.7, 0.8] }
+        ];
+
+        function euclideanDistance(a, b) {
+            return Math.sqrt(a.reduce((sum, val, i) => sum + (val - b[i]) ** 2, 0));
+        }
+
+        class Node {
+            constructor(image) {
+                this.image = image;
+                this.radius = 0;
+                this.inside = null;
+                this.outside = null;
+            }
+        }
+
+        class VPTree {
+            constructor(images, distanceFunc) {
+                this.root = this.buildTree(images, distanceFunc);
+            }
+
+            buildTree(images, distanceFunc) {
+                if (images.length === 0) return null;
+
+                const index = Math.floor(Math.random() * images.length);
+                const image = images[index];
+                const node = new Node(image);
+                images.splice(index, 1);
+
+                if (images.length === 0) return node;
+
+                const distances = images.map(img => distanceFunc(image.features, img.features));
+                const median = this.median(distances);
+                node.radius = median;
+
+                const insideImages = images.filter((img, i) => distances[i] <= median);
+                const outsideImages = images.filter((img, i) => distances[i] > median);
+
+                node.inside = this.buildTree(insideImages, distanceFunc);
+                node.outside = this.buildTree(outsideImages, distanceFunc);
+
+                return node;
+            }
+
+            median(values) {
+                values.sort((a, b) => a - b);
+                const mid = Math.floor(values.length / 2);
+                return values[mid];
+            }
+
+            search(image, maxResults, node = this.root, neighbors = []) {
+                if (!node) return neighbors;
+
+                const dist = euclideanDistance(image.features, node.image.features);
+                if (neighbors.length < maxResults || dist < neighbors[0].distance) {
+                    neighbors.push({ image: node.image, distance: dist });
+                    neighbors.sort((a, b) => b.distance - a.distance);
+                    if (neighbors.length > maxResults) neighbors.shift();
+                }
+
+                const checkInsideFirst = dist < node.radius;
+
+                if (checkInsideFirst) {
+                    this.search(image, maxResults, node.inside, neighbors);
+                    if (neighbors.length < maxResults || Math.abs(node.radius - dist) < neighbors[0].distance) {
+                        this.search(image, maxResults, node.outside, neighbors);
+                    }
+                } else {
+                    this.search(image, maxResults, node.outside, neighbors);
+                    if (neighbors.length < maxResults || Math.abs(node.radius - dist) < neighbors[0].distance) {
+                        this.search(image, maxResults, node.inside, neighbors);
+                    }
+                }
+
+                return neighbors;
+            }
+        }
+
+        const tree = new VPTree(images, euclideanDistance);
+
+        // Configuración de Clarifai
+        const clarifaiApiKey = 'YOUR_CLARIFAI_API_KEY'; // Reemplaza con tu API key de Clarifai
+
+        // Función para obtener etiquetas de Clarifai
+        async function getClarifaiTags(imageUrl) {
+            const app = new Clarifai.App({ apiKey: clarifaiApiKey });
+            const response = await app.models.predict(Clarifai.GENERAL_MODEL, { base64: imageUrl });
+            const tags = response.outputs[0].data.concepts.map(concept => concept.name.toLowerCase());
+            return tags;
+        }
+
+        function displayResults(queryImage, similarImages) {
+            const queryImageElement = document.getElementById('query-image');
+            queryImageElement.src = `images/${queryImage.id}.jpg`;
+
+            const resultImagesContainer = document.getElementById('result-images');
+            resultImagesContainer.innerHTML = '';
+
+            similarImages.forEach(result => {
+                const imageElement = document.createElement('div');
+                imageElement.classList.add('col-md-4', 'col-lg-3', 'mb-4');
+
+                const imgElement = document.createElement('img');
+                imgElement.src = `images/${result.image.id}.jpg`;
+                imgElement.alt = `Imagen ${result.image.id}`;
+                imgElement.classList.add('img-fluid', 'image-item');
+                imgElement.addEventListener('click', () => selectImage(result.image));
+
+                imageElement.appendChild(imgElement);
+                resultImagesContainer.appendChild(imageElement);
+            });
+        }
+
+        async function selectImage(image) {
+            const queryImage = { id: image.id, features: image.features };
+            const maxResults = 6;
+            const similarImages = tree.search(queryImage, maxResults);
+            displayResults(queryImage, similarImages);
+
+            const queryImageElement = document.getElementById('query-image');
+            queryImageElement.src = `images/${image.id}.jpg`;
+            queryImageElement.classList.add('selected');
+
+            const resultImages = document.querySelectorAll('.image-item');
+            resultImages.forEach(img => img.classList.remove('selected'));
+
+            const selectedImage = document.querySelector(`img[src="images/${image.id}.jpg"]`);
+            if (selectedImage) {
+                selectedImage.classList.add('selected');
+            }
+
+            // Reconocimiento de categoría con Clarifai
+            const imageUrl = `images/${image.id}.jpg`;
+            try {
+                const tags = await getClarifaiTags(imageUrl);
+                if (tags && tags.length > 0) {
+                    // Actualizar la categoría en la interfaz
+                    const categoryElement = document.createElement('div');
+                    categoryElement.classList.add('mt-2');
+                    categoryElement.textContent = `Categoría detectada: ${tags.join(', ')}`;
+                    const resultsContainer = document.querySelector('.results');
+                    resultsContainer.appendChild(categoryElement);
+                }
+            } catch (error) {
+                console.error('Error al obtener etiquetas de Clarifai:', error);
+            }
+        }
+
+        function findSimilarImages() {
+            const queryImage = { id: 6, features: [140, 170, 210, 0.65, 0.75] };
+            const maxResults = 6;
+            const similarImages = tree.search(queryImage, maxResults);
+            displayResults(queryImage, similarImages);
+        }
+
+        const searchInput = document.getElementById('search-input');
+        const suggestionsContainer = document.getElementById('suggestions-container');
+
+        searchInput.addEventListener('input', function() {
+            const query = this.value.toLowerCase().trim();
+            suggestionsContainer.innerHTML = '';
+
+            const suggestions = images.filter(image => image.category.toLowerCase().includes(query));
+            suggestions.forEach(suggestion => {
+                const suggestionElement = document.createElement('div');
+                suggestionElement.classList.add('suggestion');
+                suggestionElement.innerHTML = `
+                    <img src="images/${suggestion.id}.jpg" alt="${suggestion.category}">
+                    <span>${suggestion.category}</span>
+                `;
+                suggestionElement.addEventListener('click', () => {
+                    const queryImage = { id: suggestion.id, features: suggestion.features };
+                    const similarImages = tree.search(queryImage, 6);
+                    displayResults(queryImage, similarImages);
+                    searchInput.value = '';
+                    suggestionsContainer.innerHTML = '';
+                });
+                suggestionsContainer.appendChild(suggestionElement);
+            });
+        });
+    </script>
+</body>
+</html>
