@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulación de Árbol Buddy Mejorado</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2ecc71;
+            --background-color: #ecf0f1;
+            --text-color: #34495e;
+            --highlight-color: #e74c3c;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            padding: 20px;
+        }
+
+        .container-fluid {
+            max-width: 1200px;
+        }
+
+        .card {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        canvas {
+            display: block;
+            margin: auto;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h3 {
+            color: var(--primary-color);
+            margin-bottom: 20px;
+        }
+
+        .form-control {
+            border-radius: 20px;
+        }
+
+        .btn {
+            border-radius: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            background-color: #2980b9;
+            border-color: #2980b9;
+        }
+
+        .btn-danger {
+            background-color: #e74c3c;
+            border-color: #e74c3c;
+        }
+
+        .btn-danger:hover {
+            background-color: #c0392b;
+            border-color: #c0392b;
+        }
+
+        .btn-info {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+        }
+
+        .btn-info:hover {
+            background-color: #27ae60;
+            border-color: #27ae60;
+        }
+
+        #nodeList {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        #nodeList li {
+            background-color: var(--secondary-color);
+            color: white;
+            margin: 5px 0;
+            padding: 5px 10px;
+            border-radius: 15px;
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        #log {
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        @media (max-width: 768px) {
+            canvas {
+                width: 100%;
+                height: auto;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-lg-8 mx-auto mb-4">
+                <div class="card">
+                    <canvas id="treeCanvas" width="800" height="600"></canvas>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card mb-4">
+                    <h3 class="text-center">Insertar Nodo</h3>
+                    <div class="form-group">
+                        <label for="nodeValue">Valor del nodo:</label>
+                        <input type="number" class="form-control" id="nodeValue" aria-label="Valor del nodo a insertar">
+                    </div>
+                    <button class="btn btn-primary btn-block" onclick="addNode()">Agregar Nodo</button>
+                </div>
+                <div class="card mb-4">
+                    <h3 class="text-center">Eliminar Nodo</h3>
+                    <div class="form-group">
+                        <label for="nodeToRemove">Valor del nodo a eliminar:</label>
+                        <input type="number" class="form-control" id="nodeToRemove" aria-label="Valor del nodo a eliminar">
+                    </div>
+                    <button class="btn btn-danger btn-block" onclick="removeNode()">Eliminar Nodo</button>
+                </div>
+                <div class="card mb-4">
+                    <h3 class="text-center">Buscar Nodo</h3>
+                    <div class="form-group">
+                        <label for="nodeToSearch">Valor del nodo a buscar:</label>
+                        <input type="number" class="form-control" id="nodeToSearch" aria-label="Valor del nodo a buscar">
+                    </div>
+                    <button class="btn btn-info btn-block" onclick="searchNode()">Buscar Nodo</button>
+                </div>
+                <div class="card">
+                    <h3 class="text-center">Datos de los Nodos</h3>
+                    <ul id="nodeList" aria-label="Lista de nodos en el árbol"></ul>
+                </div>
+                <div class="card mt-4">
+                    <h3 class="text-center">Log de Operaciones</h3>
+                    <div id="log"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class Node {
+            constructor(value) {
+                this.value = value;
+                this.left = null;
+                this.right = null;
+            }
+        }
+
+        class BuddyTree {
+            constructor(canvas) {
+                this.root = null;
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.nodeRadius = 20;
+                this.levelGap = 80;
+                this.verticalGap = 60;
+                this.animationSpeed = 1000; // ms
+                this.log = document.getElementById('log');
+            }
+
+            async insert(value) {
+                this.logOperation(`Insertando el valor ${value}`);
+                if (!this.root) {
+                    this.root = new Node(value);
+                    this.logOperation(`El árbol estaba vacío. ${value} es ahora la raíz.`);
+                } else {
+                    await this.insertNode(this.root, value);
+                }
+                this.drawTree();
+                this.updateNodeList();
+            }
+
+            async insertNode(node, value) {
+                await this.highlightNode(node);
+                this.logOperation(`Comparando ${value} con ${node.value}`);
+                
+                if (value < node.value) {
+                    this.logOperation(`${value} es menor que ${node.value}. Moviendo a la izquierda.`);
+                    if (!node.left) {
+                        node.left = new Node(value);
+                        this.logOperation(`Insertado ${value} como hijo izquierdo de ${node.value}`);
+                    } else {
+                        await this.insertNode(node.left, value);
+                    }
+                } else {
+                    this.logOperation(`${value} es mayor o igual que ${node.value}. Moviendo a la derecha.`);
+                    if (!node.right) {
+                        node.right = new Node(value);
+                        this.logOperation(`Insertado ${value} como hijo derecho de ${node.value}`);
+                    } else {
+                        await this.insertNode(node.right, value);
+                    }
+                }
+            }
+
+            async remove(value) {
+                this.logOperation(`Eliminando el valor ${value}`);
+                this.root = await this.removeNode(this.root, value);
+                this.drawTree();
+                this.updateNodeList();
+            }
+
+            async removeNode(node, value) {
+                if (!node) {
+                    this.logOperation(`El valor ${value} no se encontró en el árbol.`);
+                    return null;
+                }
+
+                await this.highlightNode(node);
+                this.logOperation(`Comparando ${value} con ${node.value}`);
+
+                if (value < node.value) {
+                    this.logOperation(`${value} es menor que ${node.value}. Buscando en el subárbol izquierdo.`);
+                    node.left = await this.removeNode(node.left, value);
+                    return node;
+                } else if (value > node.value) {
+                    this.logOperation(`${value} es mayor que ${node.value}. Buscando en el subárbol derecho.`);
+                    node.right = await this.removeNode(node.right, value);
+                    return node;
+                } else {
+                    this.logOperation(`Encontrado el nodo con valor ${value}`);
+                    if (!node.left && !node.right) {
+                        this.logOperation(`El nodo ${value} es una hoja. Eliminándolo.`);
+                        return null;
+                    }
+
+                    if (!node.left) {
+                        this.logOperation(`El nodo ${value} solo tiene un hijo derecho. Reemplazándolo con su hijo.`);
+                        return node.right;
+                    }
+
+                    if (!node.right) {
+                        this.logOperation(`El nodo ${value} solo tiene un hijo izquierdo. Reemplazándolo con su hijo.`);
+                        return node.left;
+                    }
+
+                    this.logOperation(`El nodo ${value} tiene dos hijos. Buscando el sucesor.`);
+                    const minRight = await this.findMinNode(node.right);
+                    this.logOperation(`Sucesor encontrado: ${minRight.value}`);
+                    node.value = minRight.value;
+                    node.right = await this.removeNode(node.right, minRight.value);
+                    return node;
+                }
+            }
+
+            async findMinNode(node) {
+                await this.highlightNode(node);
+                if (!node.left) {
+                    this.logOperation(`Encontrado el valor mínimo: ${node.value}`);
+                    return node;
+                }
+                this.logOperation(`Buscando valor mínimo, moviéndose a la izquierda de ${node.value}`);
+                return this.findMinNode(node.left);
+            }
+
+            async search(value) {
+                this.logOperation(`Buscando el valor ${value}`);
+                return await this.searchNode(this.root, value);
+            }
+
+            async searchNode(node, value) {
+                if (node === null) {
+                    this.logOperation(`El valor ${value} no se encontró en el árbol.`);
+                    return null;
+                }
+
+                await this.highlightNode(node);
+                this.logOperation(`Comparando ${value} con ${node.value}`);
+
+                if (value === node.value) {
+                    this.logOperation(`¡Encontrado! El valor ${value} está en el árbol.`);
+                    return node;
+                } else if (value < node.value) {
+                    this.logOperation(`${value} es menor que ${node.value}. Buscando en el subárbol izquierdo.`);
+                    return await this.searchNode(node.left, value);
+                } else {
+                    this.logOperation(`${value} es mayor que ${node.value}. Buscando en el subárbol derecho.`);
+                    return await this.searchNode(node.right, value);
+                }
+            }
+
+            drawTree() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                if (this.root) {
+                    this.drawNode(this.root, this.canvas.width / 2, 50, 0);
+                }
+            }
+
+            drawNode(node, x, y, level, highlight = false) {
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, this.nodeRadius, 0, Math.PI * 2);
+                this.ctx.fillStyle = highlight ? 'yellow' : '#fff';
+                this.ctx.strokeStyle = highlight ? 'red' : '#555';
+                this.ctx.lineWidth = 2;
+                this.ctx.fill();
+                this.ctx.stroke();
+                this.ctx.closePath();
+
+                this.ctx.font = '14px Arial';
+                this.ctx.fillStyle = '#555';
+                this.ctx.textAlign = 'center';
+                this.ctx.textBaseline = 'middle';
+                this.ctx.fillText(node.value, x, y);
+
+                if (node.left) {
+                    const childX = x - this.levelGap / Math.pow(2, level + 1);
+                    const childY = y + this.verticalGap;
+                    this.drawNode(node.left, childX, childY, level + 1);
+                    this.drawLine(x, y, childX, childY);
+                }
+
+                if (node.right) {
+                    const childX = x + this.levelGap / Math.pow(2, level + 1);
+                    const childY = y + this.verticalGap;
+                    this.drawNode(node.right, childX, childY, level + 1);
+                    this.drawLine(x, y, childX, childY);
+                }
+            }
+
+            drawLine(x1, y1, x2, y2) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(x1, y1 + this.nodeRadius);
+                this.ctx.lineTo(x2, y2 - this.nodeRadius);
+                this.ctx.strokeStyle = '#555';
+                this.ctx.lineWidth = 2;
+                this.ctx.stroke();
+                this.ctx.closePath();
+            }
+
+            updateNodeList() {
+                const nodeList = document.getElementById('nodeList');
+                nodeList.innerHTML = '';
+                this.traverseInOrder(this.root, nodeList);
+            }
+
+            traverseInOrder(node, list) {
+                if (node) {
+                    this.traverseInOrder(node.left, list);
+                    const listItem = document.createElement('li');
+                    listItem.textContent = node.value;
+                    list.appendChild(listItem);
+                    this.traverseInOrder(node.right, list);
+                }
+            }
+
+            async highlightNode(node) {
+                this.drawTree();
+                this.drawNode(node, this.canvas.width / 2, 50, 0, true);
+                await new Promise(resolve => setTimeout(resolve, this.animationSpeed));
+            }
+
+            logOperation(message) {
+                const logEntry = document.createElement('div');
+                logEntry.textContent = message;
+                this.log.appendChild(logEntry);
+                this.log.scrollTop = this.log.scrollHeight;
+            }
+        }
+
+        const canvas = document.getElementById('treeCanvas');
+        const tree = new BuddyTree(canvas);
+
+        async function addNode() {
+            const valueInput = document.getElementById('nodeValue');
+            const value = parseInt(valueInput.value);
+            if (!isNaN(value)) {
+                await tree.insert(value);
+                valueInput.value = '';
+            }}
+
+async function removeNode() {
+    const valueInput = document.getElementById('nodeToRemove');
+    const value = parseInt(valueInput.value);
+    if (!isNaN(value)) {
+        await tree.remove(value);
+        valueInput.value = '';
+    }
+}
+
+async function searchNode() {
+    const valueInput = document.getElementById('nodeToSearch');
+    const value = parseInt(valueInput.value);
+    if (!isNaN(value)) {
+        await tree.search(value);
+        valueInput.value = '';
+    }
+}
+
+tree.drawTree();
+</script>
+</body>
+
+</html>
